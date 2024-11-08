@@ -1,8 +1,10 @@
 const User = require("../users/user");
 
-const InstructorService = {
+const InstructorController = {
   addStudentToInstructor,
-  removeStudentFromInstructor, // Adicione a função aqui
+  removeStudentFromInstructor,
+  getStudentsByInstructor,
+  getStudentsByInstructorEmail,
 };
 
 async function addStudentToInstructor(adminId, studentId) {
@@ -56,4 +58,44 @@ async function removeStudentFromInstructor(adminId, studentId) {
   }
 }
 
-module.exports = InstructorService;
+// Função para obter os estudantes de um administrador
+async function getStudentsByInstructor(adminId) {
+  try {
+    const admin = await User.findById(adminId).populate("students");
+
+    if (!admin) {
+      throw new Error("Admin não encontrado.");
+    }
+
+    if (admin.role.name !== "Admin") {
+      throw new Error("Usuário não é um administrador.");
+    }
+
+    return admin.students;
+  } catch (error) {
+    throw error;
+  }
+}
+
+// Função para obter os estudantes de um administrador pelo Email
+async function getStudentsByInstructorEmail(adminEmail) {
+  try {
+    const admin = await User.findOne({ email: adminEmail }).populate(
+      "students"
+    );
+
+    if (!admin) {
+      throw new Error("Admin não encontrado.");
+    }
+
+    if (admin.role.name !== "Admin") {
+      throw new Error("Usuário não é um administrador.");
+    }
+
+    return admin.students;
+  } catch (error) {
+    throw error;
+  }
+}
+
+module.exports = InstructorController;

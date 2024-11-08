@@ -1,4 +1,4 @@
-const InstructorService = require("./service");
-const service = InstructorService(Instructor);
+const InstructorController = require("./controller");
+const controller = InstructorController(Instructor);
 
-module.exports = service;
+module.exports = controller;

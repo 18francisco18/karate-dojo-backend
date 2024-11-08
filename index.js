@@ -7,12 +7,10 @@ const http = require("http");
 
 const app = express();
 
-// Configuração de CORS para permitir a origem específica e habilitar credenciais
 const corsOptions = {
-  origin: "http://localhost:5000",
-  credentials: true,
+  origin: "http://localhost:3000", // Altere para a porta 3000, onde o frontend está rodando
+  credentials: true, // Permite o envio de cookies e headers de autenticação
 };
-
 
 // Middleware para analisar JSON
 app.use(express.json());

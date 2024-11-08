@@ -40,5 +40,26 @@ let userSchema = new Schema({
   },
 });
 
+// Função para aplicar projeção condicional
+userSchema.methods.toJSON = function () {
+  const user = this.toObject();
+
+  // Verifica o escopo do usuário
+  const scopes = user.role.scope || [];
+
+  // Se o escopo for "Admin", remove 'monthlyFees' e 'graduations'
+  if (scopes.includes("Admin")) {
+    delete user.monthlyFees;
+    delete user.graduations;
+  }
+
+  // Se o escopo for "Student", remove 'instructor'
+  if (scopes.includes("Student")) {
+    delete user.instructor;
+  }
+
+  return user;
+};
+
 let User = mongoose.model("User", userSchema);
 module.exports = User;

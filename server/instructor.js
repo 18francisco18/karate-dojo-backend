@@ -3,7 +3,7 @@ const bodyParser = require("body-parser");
 const express = require("express");
 
 const VerifyToken = require("../middleware/token");
-const instructorService = require("../data/instructor/service");
+const InstructorController = require("../data/instructor/controller");
 
 const InstructorRouter = () => {
   let router = express.Router();
@@ -23,7 +23,7 @@ const InstructorRouter = () => {
     }
 
     try {
-      const result = await instructorService.addStudentToInstructor(
+      const result = await InstructorController.addStudentToInstructor(
         adminId,
         studentId
       );
@@ -44,11 +44,38 @@ const InstructorRouter = () => {
     }
 
     try {
-      const result = await instructorService.removeStudentFromInstructor(
+      const result = await InstructorController.removeStudentFromInstructor(
         adminId,
         studentId
       );
       return res.status(200).json({ message: result });
+    } catch (error) {
+      return res.status(500).json({ message: error.message });
+    }
+  });
+
+  router.get("/:adminId/students", async (req, res) => {
+    const { adminId } = req.params;
+
+    try {
+      const students = await InstructorController.getStudentsByInstructor(
+        adminId
+      );
+      return res.status(200).json({ students });
+    } catch (error) {
+      return res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Rota para obter estudantes de um administrador pelo Email
+  router.get("/email/:email/students", async (req, res) => {
+    const { email } = req.params;
+
+    try {
+      const students = await InstructorController.getStudentsByInstructorEmail(
+        email
+      );
+      return res.status(200).json({ students });
     } catch (error) {
       return res.status(500).json({ message: error.message });
     }
