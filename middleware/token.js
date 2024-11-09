@@ -1,5 +1,5 @@
 const Users = require("../data/users");
-const User = require("../data/users/user");
+const User = require("../models/user");
 
 function verifyTokenMiddleware(req, res, next) {
   const token = req.cookies.token || req.headers["authorization"];
@@ -9,10 +9,8 @@ function verifyTokenMiddleware(req, res, next) {
     return res.status(401).send({ auth: false, message: "No token provided." });
   }
 
-  // Se o token vier dos headers, remove a palavra 'Bearer ' antes de verificar
-  const bearerToken = token.startsWith("Bearer ")
-    ? token.slice(7, token.length)
-    : token;
+  // Remove a lógica que verifica e remove a palavra 'Bearer '
+  const bearerToken = token;
 
   Users.verifyToken(bearerToken)
     .then((decoded) => {

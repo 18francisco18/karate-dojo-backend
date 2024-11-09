@@ -1,15 +1,25 @@
-const User = require("../users/user");
+const User = require("../../models/user");
 
 const InstructorController = {
+  getInstructors,
   addStudentToInstructor,
   removeStudentFromInstructor,
   getStudentsByInstructor,
   getStudentsByInstructorEmail,
 };
 
+async function getInstructors() {
+  try {
+    const instructors = await User.find({ "role.name": "Admin" });
+    return instructors;
+  } catch (error) {
+    throw new Error("Erro ao obter instrutores: " + error.message);
+  }
+}
+
 async function addStudentToInstructor(adminId, studentId) {
   try {
-    const admin = await User.findById(adminId);
+    const admin = await User.findById(adminId).populate("students");
     if (!admin) {
       throw new Error("Admin não encontrado.");
     }
@@ -18,6 +28,12 @@ async function addStudentToInstructor(adminId, studentId) {
       throw new Error("O usuário não tem o papel de Admin.");
     }
 
+    // Verifica se o administrador já tem 10 alunos
+    if (admin.students.length >= 10) {
+      throw new Error("O administrador não pode ter mais de 10 alunos.");
+    }
+
+    // Verifica se o aluno já está associado ao administrador
     if (!admin.students.includes(studentId)) {
       admin.students.push(studentId);
       await admin.save();

@@ -1,0 +1,5 @@
+/* Verifica o token de autenticação antes de permitir acesso às rotas
+  router.use(VerifyToken);
+
+  quando as rotas funcionarem todas usar o codigo acima para verificar o token e dar acesso às rotas apenas para quem tiver permissoes
+*/

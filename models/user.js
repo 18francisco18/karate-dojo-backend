@@ -1,6 +1,9 @@
 let mongoose = require("mongoose");
 let Schema = mongoose.Schema;
-let scopes = require("./scopes");
+let scopes = require("../data/users/scopes");
+let MonthlyFee = require("./monthlyFee");
+let MonthlyPlan = require("./monthlyPlan");
+let Graduation = require("./graduation");
 
 let RoleSchema = new Schema({
   name: { type: String, required: true },
@@ -12,7 +15,7 @@ let RoleSchema = new Schema({
   ],
 });
 
-let userSchema = new Schema({
+let userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, unique: true, required: true },
   password: { type: String, required: true },
@@ -21,8 +24,10 @@ let userSchema = new Schema({
   role: { type: RoleSchema, required: true },
   instructor: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   students: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-  monthlyFees: [{ date: Date, status: String }],
-  graduations: [{ level: String, date: Date }],
+
+  monthlyFee: [{ type: mongoose.Schema.Types.ObjectId, ref: "MonthlyFee" }],
+  monthlyPlan: [{ type: mongoose.Schema.Types.ObjectId, ref: "MonthlyPlan" }],
+  graduation: [{ type: mongoose.Schema.Types.ObjectId, ref: "Graduation" }],
 
   belt: {
     type: String,
@@ -43,17 +48,13 @@ let userSchema = new Schema({
 // Função para aplicar projeção condicional
 userSchema.methods.toJSON = function () {
   const user = this.toObject();
-
-  // Verifica o escopo do usuário
   const scopes = user.role.scope || [];
 
-  // Se o escopo for "Admin", remove 'monthlyFees' e 'graduations'
   if (scopes.includes("Admin")) {
     delete user.monthlyFees;
     delete user.graduations;
   }
 
-  // Se o escopo for "Student", remove 'instructor'
   if (scopes.includes("Student")) {
     delete user.instructor;
   }

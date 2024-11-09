@@ -1,7 +1,6 @@
 const cookieParser = require("cookie-parser");
 const bodyParser = require("body-parser");
 const express = require("express");
-
 const VerifyToken = require("../middleware/token");
 const InstructorController = require("../data/instructor/controller");
 
@@ -11,6 +10,16 @@ const InstructorRouter = () => {
   router.use(cookieParser());
   router.use(bodyParser.json({ limit: "100mb" }));
   router.use(bodyParser.urlencoded({ limit: "100mb", extended: true }));
+
+  // Rota para obter todos os instrutores
+  router.get("/instructors", async (req, res) => {
+    try {
+      const instructors = await InstructorController.getInstructors();
+      res.json(instructors);
+    } catch (error) {
+      res.status(500).send(error.message);
+    }
+  });
 
   // Rota para adicionar um estudante a um administrador
   router.post("/addStudent", async (req, res) => {
