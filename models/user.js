@@ -5,30 +5,26 @@ let MonthlyFee = require("./monthlyFee");
 let MonthlyPlan = require("./monthlyPlan");
 let Graduation = require("./graduation");
 
-let RoleSchema = new Schema({
-  name: { type: String, required: true },
-  scope: [
-    {
-      type: String,
-      enum: [scopes.Admin, scopes.Student],
-    },
-  ],
-});
-
-let userSchema = new mongoose.Schema({
+// Instructor schema (inherits base schema)
+let instructorSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, unique: true, required: true },
   password: { type: String, required: true },
   passwordResetToken: { type: String, select: false },
   passwordResetExpires: { type: Date, select: false },
-  role: { type: RoleSchema, required: true },
-  instructor: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-  students: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+  role: { type: String, enum: [scopes.Admin], required: true },
+  students: [{ type: mongoose.Schema.Types.ObjectId, ref: "Student" }],
+});
 
-  monthlyFee: [{ type: mongoose.Schema.Types.ObjectId, ref: "MonthlyFee" }],
-  monthlyPlan: [{ type: mongoose.Schema.Types.ObjectId, ref: "MonthlyPlan" }],
-  graduation: [{ type: mongoose.Schema.Types.ObjectId, ref: "Graduation" }],
-
+// Student schema (inherits base schema)
+let studentSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  email: { type: String, unique: true, required: true },
+  password: { type: String, required: true },
+  passwordResetToken: { type: String, select: false },
+  passwordResetExpires: { type: Date, select: false },
+  role: { type: String, enum: [scopes.Student], required: true },
+  instructor: { type: mongoose.Schema.Types.ObjectId, ref: "Instructor" },
   belt: {
     type: String,
     enum: [
@@ -43,24 +39,12 @@ let userSchema = new mongoose.Schema({
     ],
     required: true,
   },
+  monthlyFee: [{ type: mongoose.Schema.Types.ObjectId, ref: "MonthlyFee" }],
+  monthlyPlan: [{ type: mongoose.Schema.Types.ObjectId, ref: "MonthlyPlan" }],
+  graduation: [{ type: mongoose.Schema.Types.ObjectId, ref: "Graduation" }],
 });
 
-// Função para aplicar projeção condicional
-userSchema.methods.toJSON = function () {
-  const user = this.toObject();
-  const scopes = user.role.scope || [];
-
-  if (scopes.includes("Admin")) {
-    delete user.monthlyFees;
-    delete user.graduations;
-  }
-
-  if (scopes.includes("Student")) {
-    delete user.instructor;
-  }
-
-  return user;
-};
-
-let User = mongoose.model("User", userSchema);
-module.exports = User;
+// Create models
+let Instructor = mongoose.model("Instructor", instructorSchema);
+let Student = mongoose.model("Student", studentSchema);
+module.exports = { Instructor, Student };

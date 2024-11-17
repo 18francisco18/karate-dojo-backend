@@ -1,6 +1,8 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const config = require("../../config");
+const scopes = require("./scopes");
+const { Instructor, Student } = require("../../models/user");
 
 function UserService(UserModel) {
   let service = {
@@ -18,23 +20,28 @@ function UserService(UserModel) {
 
   async function create(user) {
     try {
-      // Cria a senha criptografada
       const hashPassword = await createPassword(user);
+      let newUserWithPassword = { ...user, password: hashPassword };
 
-      // Monta o novo objeto do usuário com a senha criptografada
-      let newUserWithPassword = {
-        ...user,
-        password: hashPassword,
-      };
+      // Handle different roles
+      if (user.role === "Admin") {
+        newUserWithPassword.scope = user.scope || ["User"]; // Handle scope for Instructor
+      }
 
-      // Cria uma nova instância do modelo de usuário
+      let UserModel;
+      if (user.role === "Admin") {
+        UserModel = Instructor;
+      } else if (user.role === "Student") {
+        UserModel = Student;
+      } else {
+        throw new Error("Invalid role");
+      }
+
       let newUser = new UserModel(newUserWithPassword);
-
-      // Tenta salvar o novo usuário no banco de dados
       const result = await save(newUser);
       return result;
     } catch (err) {
-      console.error("Error in create function:", err); // Adicionando um log mais detalhado
+      console.error("Error in create function:", err);
       return Promise.reject("Not Saved");
     }
   }
@@ -76,9 +83,10 @@ function UserService(UserModel) {
   }
 
   // Converte para async
-  async function findUser(model, body) {
+  async function findUser(body) {
     try {
-      const user = await model.findOne({ email: body.email });
+      const UserModel = body.role === scopes.Instructor ? Instructor : Student; // Dynamic model based on role
+      const user = await UserModel.findOne({ email: body.email });
       if (!user) {
         throw new Error("User not found");
       }
@@ -139,7 +147,7 @@ function UserService(UserModel) {
 
   function createToken(user) {
     let token = jwt.sign(
-      { id: user._id, name: user.name, role: user.role.scopes },
+      { id: user._id, name: user.name, role: user.role.scope },
       config.secret,
       {
         expiresIn: config.expiresPassword,

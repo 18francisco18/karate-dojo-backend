@@ -3,7 +3,7 @@ let mongoose = require("mongoose");
 let Schema = mongoose.Schema;
 
 let graduationSchema = new Schema({
-  user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+  user: { type: Schema.Types.ObjectId, ref: "Student", required: true },
   level: {
     type: String,
     enum: [

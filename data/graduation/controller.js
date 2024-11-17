@@ -1,6 +1,6 @@
 // controllers/graduationController.js
+const { Instructor, Student } = require("../../models/user");
 const Graduation = require("../../models/graduation");
-const User = require("../../models/user");
 const { generateDiploma } = require("../../pdfs/pdfService"); // Importando o serviço de PDF
 
 const GraduationController = {
@@ -26,7 +26,7 @@ async function createGraduation(userId, level, instructorId, location, date) {
 
     await graduation.save();
 
-    const user = await User.findById(userId);
+    const user = await Student.findById(userId); // Altere para Student
     if (!user) {
       throw new Error("Usuário não encontrado");
     }
@@ -132,7 +132,7 @@ async function updateGraduation(id, score, comment = "", certificateUrl = "") {
     }
     await graduation.save();
 
-    const user = await User.findById(graduation.user);
+    const user = await Student.findById(graduation.user);
     if (!user) {
       throw new Error("Usuário não encontrado");
     }

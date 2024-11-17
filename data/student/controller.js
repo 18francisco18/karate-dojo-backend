@@ -1,5 +1,5 @@
 const MonthlyPlan = require("../../models/monthlyPlan");
-const User = require("../../models/user");
+const { Student } = require("../../models/user"); // Importando o modelo Student
 const MonthlyFeeController = require("../monthlyFees/controller");
 
 const StudentController = {
@@ -26,7 +26,7 @@ async function getAvailablePlans() {
 async function choosePlan(studentId, planType) {
   try {
     // Encontra o aluno
-    const student = await User.findById(studentId);
+    const student = await Student.findById(studentId); // Alterado para usar o modelo Student
     if (!student) {
       throw new Error("Aluno não encontrado.");
     }
@@ -94,7 +94,7 @@ async function choosePlan(studentId, planType) {
 
 async function getStudentDetails(studentId) {
   try {
-    const student = await User.findById(studentId)
+    const student = await Student.findById(studentId) // Alterado para usar Student
       .populate("monthlyPlan") // Popula o plano mensal do aluno
       .populate("monthlyFee"); // Popula a mensalidade do aluno
     return student;

@@ -38,6 +38,14 @@ const InstructorRouter = () => {
       );
       return res.status(200).json({ message: result });
     } catch (error) {
+      // Se o erro for causado por duplicação, enviamos uma mensagem específica
+      if (
+        error.message ===
+          "Este estudante já está associado a este administrador." ||
+        error.message === "Este aluno já tem este instrutor associado."
+      ) {
+        return res.status(400).json({ message: error.message });
+      }
       return res.status(500).json({ message: error.message });
     }
   });
