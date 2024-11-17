@@ -74,7 +74,7 @@ async function generateDiploma(graduation) {
       .moveDown(2)
       .fontSize(16)
       .text("_________________________", { align: "right" })
-      .text("Sensei John Kreese", { align: "right" })
+      .text("O Mestre:", { align: "right" })
       .text("Cobra Kai Dojo", { align: "right" });
 
     doc.end();
