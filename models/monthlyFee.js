@@ -22,7 +22,7 @@ let monthlyFeeSchema = new Schema({
   },
   method: {
     type: String,
-    enum: ["Dinheiro", "Cartão", "Transferência", "Stripe"],
+    enum: ["Dinheiro", "Cartão", "Transferência"],
     default: "Dinheiro",
   },
   transactionId: { type: String },

@@ -1,8 +1,9 @@
+// controllers/monthlyFeeController.js
 const MonthlyFee = require("../../models/monthlyFee");
-const User = require("../../models/user");
 
 const MonthlyFeeController = {
   createMonthlyFee,
+  updateMonthlyFeeStatus, // Adiciona a função no controller
 };
 
 // Função para criar uma mensalidade
@@ -28,6 +29,30 @@ async function createMonthlyFee(studentId, price) {
   } catch (error) {
     console.error("Erro ao criar mensalidade:", error.message);
     throw error;
+  }
+}
+
+// Função para atualizar o status das mensalidades
+async function updateMonthlyFeeStatus() {
+  try {
+    const currentDate = new Date();
+    // Encontra todas as mensalidades com a data de vencimento passada e com status diferente de 'Pago'
+    const overdueFees = await MonthlyFee.find({
+      dueDate: { $lt: currentDate },
+      status: { $ne: "Pago" }, // Exclui as que já estão pagas
+    });
+
+    // Atualiza o status das mensalidades vencidas para 'Atrasado'
+    for (let fee of overdueFees) {
+      fee.status = "Atrasado";
+      await fee.save();
+    }
+
+    console.log(
+      `Status atualizado para "Atrasado" em ${overdueFees.length} mensalidades.`
+    );
+  } catch (error) {
+    console.error("Erro ao atualizar mensalidades:", error.message);
   }
 }
 

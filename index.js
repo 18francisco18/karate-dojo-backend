@@ -12,6 +12,9 @@ const corsOptions = {
   credentials: true, // Permite o envio de cookies e headers de autenticação
 };
 
+// Importa o cron job para rodar automaticamente
+require("./jobs/cronJobs"); // Importa o arquivo de jobs com o cron
+
 // Middleware para analisar JSON
 app.use(express.json());
 // Middleware para habilitar CORS
