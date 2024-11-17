@@ -26,4 +26,5 @@ let graduationSchema = new Schema({
   certificateUrl: { type: String },
 });
 
-module.exports = mongoose.model("Graduation", graduationSchema);
+let Graduation = mongoose.model("Graduation", graduationSchema);
+module.exports = Graduation;

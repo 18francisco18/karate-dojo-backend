@@ -8,7 +8,6 @@ const VerifyToken = require("../middleware/token");
 const AuthRouter = () => {
   let router = express();
 
-  router.use(cookieParser());
   router.use(bodyParser.json({ limit: "100mb" }));
   router.use(bodyParser.urlencoded({ limit: "100mb", extended: true }));
 

@@ -3,6 +3,7 @@ let AuthAPI = require("./server/auth");
 let InstructorApi = require("./server/instructor");
 let PasswordAPI = require("./server/password");
 let StudentAPI = require("./server/student");
+let GraduationAPI = require("./server/graduation");
 
 function init() {
   let api = express();
@@ -11,6 +12,7 @@ function init() {
   api.use("/instructor", InstructorApi());
   api.use("/password", PasswordAPI());
   api.use("/student", StudentAPI());
+  api.use("/graduation", GraduationAPI());
 
   return api;
 }
