@@ -27,9 +27,7 @@ async function getInstructors() {
 // Atualizar detalhes do instrutor
 async function updateInstructorDetails(adminId, updates) {
   try {
-    const updatedAdmin = await Instructor.findByIdAndUpdate(adminId, updates, {
-      new: true,
-    });
+    const updatedAdmin = await Instructor.findByIdAndUpdate(adminId, updates, { new: true });
     if (!updatedAdmin) {
       throw new Error("Instrutor não encontrado.");
     }
@@ -46,7 +44,7 @@ async function addStudentToInstructor(adminId, studentId) {
     if (!admin || admin.role !== "Admin") {
       throw new Error("Admin não encontrado ou não autorizado.");
     }
-    if (admin.students.some((student) => student.toString() === studentId)) {
+    if (admin.students.some(student => student.toString() === studentId)) {
       throw new Error("Este estudante já está associado a este administrador.");
     }
     if (admin.students.length >= 10) {
@@ -77,9 +75,7 @@ async function removeStudentFromInstructor(adminId, studentId) {
       (student) => student._id.toString() === studentId.toString()
     );
     if (studentIndex === -1) {
-      throw new Error(
-        "Este estudante não está associado a este administrador."
-      );
+      throw new Error("Este estudante não está associado a este administrador.");
     }
     admin.students.splice(studentIndex, 1);
     await admin.save();
@@ -111,9 +107,7 @@ async function getStudentsByInstructor(adminId) {
 // Obter estudantes por email do instrutor
 async function getStudentsByInstructorEmail(adminEmail) {
   try {
-    const admin = await Instructor.findOne({ email: adminEmail }).populate(
-      "students"
-    );
+    const admin = await Instructor.findOne({ email: adminEmail }).populate("students");
     if (!admin || admin.role !== "Admin") {
       throw new Error("Admin não encontrado ou não autorizado.");
     }
@@ -147,16 +141,11 @@ async function getInstructorDetailsWithStudents(adminId) {
 // Obter instrutor pelo ID do aluno
 async function getInstructorByStudentId(studentId) {
   try {
-    const student = await Student.findById(studentId).populate(
-      "instructor",
-      "name email"
-    );
+    const student = await Student.findById(studentId).populate("instructor", "name email");
     if (!student) throw new Error("Aluno não encontrado.");
     return student.instructor;
   } catch (error) {
-    throw new Error(
-      "Erro ao obter instrutor pelo ID do aluno: " + error.message
-    );
+    throw new Error("Erro ao obter instrutor pelo ID do aluno: " + error.message);
   }
 }
 
@@ -166,13 +155,11 @@ async function removeAllStudentsFromInstructor(adminId) {
     const admin = await Instructor.findById(adminId).populate("students");
     if (!admin) throw new Error("Instrutor não encontrado.");
 
-    await Promise.all(
-      admin.students.map(async (student) => {
-        const s = await Student.findById(student._id);
-        s.instructor = null;
-        return s.save();
-      })
-    );
+    await Promise.all(admin.students.map(async (student) => {
+      const s = await Student.findById(student._id);
+      s.instructor = null;
+      return s.save();
+    }));
 
     admin.students = [];
     await admin.save();

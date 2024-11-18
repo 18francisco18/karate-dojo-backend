@@ -160,4 +160,4 @@ function InstructorService() {
   return service;
 }
 
-module.exports = InstructorService;
+module.exports = InstructorService();
