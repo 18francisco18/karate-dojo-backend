@@ -40,18 +40,25 @@ async function enrollInGraduation(studentId, graduationId) {
       throw new Error("Graduação não encontrada.");
     }
 
-    // Verifica se o aluno já está inscrito na graduação
-    if (graduation.students.includes(studentId)) {
+    // Verifica se o aluno já está inscrito nesta graduação
+    if (graduation.student && graduation.student.toString() === studentId) {
       throw new Error("Aluno já está inscrito nesta graduação.");
     }
 
     // Associa o aluno à graduação
-    graduation.students.push(studentId);
+    graduation.student = studentId;
     await graduation.save();
 
-    // Adiciona a graduação ao aluno
-    student.graduations = student.graduations || []; // Garante que graduations seja um array
-    student.graduations.push(graduationId);
+    // Garante que student.graduation seja um array
+    if (!Array.isArray(student.graduation)) {
+      student.graduation = [];
+    }
+
+    // Adiciona a graduação ao aluno se ela ainda não estiver associada
+    if (!student.graduation.includes(graduationId)) {
+      student.graduation.push(graduationId);
+    }
+
     await student.save();
 
     // Retorna a confirmação da inscrição

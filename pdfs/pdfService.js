@@ -4,8 +4,9 @@ const path = require("path");
 
 async function generateDiploma(graduation, instructorName) {
   return new Promise((resolve, reject) => {
-    if (!graduation.user || !graduation.user.name) {
-      return reject(new Error("Dados do usuário estão incompletos"));
+    // Certifique-se de que o estudante está associado e que o nome do estudante existe
+    if (!graduation.student || !graduation.student.name) {
+      return reject(new Error("Dados do estudante estão incompletos"));
     }
 
     const doc = new PDFDocument();
@@ -41,9 +42,10 @@ async function generateDiploma(graduation, instructorName) {
       .moveDown()
       .fontSize(18)
       .font("Helvetica")
-      .text(`Certificamos que o aluno ${graduation.user.name.toUpperCase()}`, {
-        align: "center",
-      })
+      .text(
+        `Certificamos que o aluno ${graduation.student.name.toUpperCase()}`,
+        { align: "center" }
+      )
       .moveDown()
       .text(
         `Alcançou o cinto de nível ${graduation.level.toUpperCase()} com mérito.`,

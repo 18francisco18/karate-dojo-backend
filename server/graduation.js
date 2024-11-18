@@ -11,33 +11,32 @@ const GraduationRouter = () => {
 
   // 1. Rota para criar graduação (apenas Admin)
   // Endpoint para o instrutor criar uma nova graduação
-  router.post(
-    "/create",
-    verifyTokenMiddleware("Admin"),
-    async (req, res) => {
-      try {
-        const { level, instructorId, location, date } = req.body;
-        const graduation = await GraduationController.createGraduation(
-          level,
-          instructorId,
-          location,
-          date
-        );
-        res.status(201).json(graduation);
-      } catch (error) {
-        res.status(500).json({ message: error.message });
-      }
+  router.post("/create", verifyTokenMiddleware("Admin"), async (req, res) => {
+    try {
+      const { level, instructorId, location, date } = req.body;
+      const graduation = await GraduationController.createGraduation(
+        level,
+        instructorId,
+        location,
+        date
+      );
+      res.status(201).json(graduation);
+    } catch (error) {
+      res.status(500).json({ message: error.message });
     }
-  );
+  });
 
   // 2. Rota para avaliar graduação (apenas Admin)
   router.patch(
     "/evaluate/:id",
-    verifyTokenMiddleware("Admin"),
+    verifyTokenMiddleware("Admin"), // Middleware para validar o token e permissões
     async (req, res) => {
       try {
-        const { score, comments, instructorId } = req.body;
-        const { id } = req.params;
+        const { score, comments } = req.body; // Removido instructorId do body
+        const { id } = req.params; // ID da graduação
+        const instructorId = req.userId; // Obtém o ID do instrutor diretamente do token
+
+        // Chama o controlador com o instructorId do token
         const result = await GraduationController.evaluateGraduation(
           id,
           score,

@@ -18,10 +18,9 @@ async function createGraduation(level, instructorId, location, date) {
     const graduationDate = date || new Date();
     const graduation = new Graduation({
       level,
-      instructor: instructorId,
+      nstructor: instructorId,
       location,
       date: graduationDate,
-      students: [], // Inicializa com um array vazio de estudantes
     });
 
     await graduation.save();
@@ -39,19 +38,32 @@ async function evaluateGraduation(id, score, comments, instructorId) {
   }
 
   try {
-    // Busca a graduação e o aluno
-    const graduation = await Graduation.findById(id).populate("user");
+    // Buscar a graduação e popular o estudante associado
+    const graduation = await Graduation.findById(id).populate({
+      path: "student",
+      select: "name belt", // Garantir que estamos buscando os campos corretos
+    });
 
     if (!graduation) {
       throw new Error("Graduação não encontrada");
     }
 
-    const user = graduation.user;
-    if (!user || !user.name) {
-      throw new Error("Dados do usuário estão incompletos");
+    const student = graduation.student;
+    if (!student) {
+      throw new Error("Nenhum estudante associado a esta graduação");
     }
 
-    // Buscar o instrutor pelo ID passado no body
+    // Verificar se os dados do estudante estão completos
+    if (!student.name) {
+      console.error(
+        `Dados do estudante estão incompletos para o estudante com ID: ${student._id}`
+      );
+      throw new Error(
+        `Dados do estudante estão incompletos para o estudante com ID: ${student._id}`
+      );
+    }
+
+    // Buscar o instrutor pelo ID passado no token
     let instructorName = "Sensei Desconhecido";
     if (instructorId) {
       const instructor = await Instructor.findById(instructorId).select("name");
@@ -67,8 +79,8 @@ async function evaluateGraduation(id, score, comments, instructorId) {
 
     // Atualizar o cinto do aluno se a pontuação for suficiente
     if (score >= 50) {
-      user.belt = graduation.level;
-      await user.save();
+      student.belt = graduation.level;
+      await student.save();
 
       // Gerar diploma após avaliação bem-sucedida
       const diplomaPath = await generateDiploma(graduation, instructorName);
@@ -90,8 +102,8 @@ async function evaluateGraduation(id, score, comments, instructorId) {
 // 3. Obter Todas as Graduações de um Usuário
 async function getUserGraduations(userId) {
   try {
-    const graduations = await Graduation.find({ user: userId }).populate(
-      "user instructor"
+    const graduations = await Graduation.find({ student: userId }).populate(
+      "student instructor"
     );
     if (!graduations || graduations.length === 0) {
       throw new Error("Nenhuma graduação encontrada para este usuário.");
@@ -106,7 +118,7 @@ async function getUserGraduations(userId) {
 async function getGraduationById(id) {
   try {
     const graduation = await Graduation.findById(id).populate(
-      "user instructor"
+      "student instructor"
     );
     if (!graduation) {
       throw new Error("Graduação não encontrada");
@@ -124,7 +136,7 @@ async function updateGraduation(id, score, comment = "", certificateUrl = "") {
   }
 
   try {
-    const graduation = await Graduation.findById(id);
+    const graduation = await Graduation.findById(id).populate("student");
     if (!graduation) {
       throw new Error("Graduação não encontrada");
     }
@@ -136,14 +148,14 @@ async function updateGraduation(id, score, comment = "", certificateUrl = "") {
     }
     await graduation.save();
 
-    const user = await Student.findById(graduation.user);
-    if (!user) {
-      throw new Error("Usuário não encontrado");
+    const student = graduation.student;
+    if (!student) {
+      throw new Error("Nenhum estudante associado a esta graduação");
     }
 
     if (score >= 50) {
-      user.belt = graduation.level;
-      await user.save();
+      student.belt = graduation.level;
+      await student.save();
     }
 
     return {
