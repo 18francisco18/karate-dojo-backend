@@ -3,19 +3,21 @@ const jwt = require("jsonwebtoken");
 const config = require("../../config");
 const scopes = require("./scopes");
 const { Instructor, Student } = require("../../models/user");
+const qrCode = require("qrcode");
 
 function UserService(UserModel) {
   let service = {
-    create, //feito
-    findAll, //feito
-    findById, //feito
-    findUser, //feito
-    removeById, //feito
-    updateUser, //feito
-    createPassword, //feito
-    comparePassword, //feito
-    verifyToken, //feito
-    createToken, //feito
+    create,
+    findAll,
+    findById,
+    findUser,
+    removeById,
+    updateUser,
+    createPassword,
+    comparePassword,
+    verifyToken,
+    createToken,
+    generateQRCodeWithCredentials,
   };
 
   async function create(user) {
@@ -162,6 +164,27 @@ function UserService(UserModel) {
 
   function comparePassword(password, hash) {
     return bcrypt.compare(password, hash);
+  }
+
+  async function generateQRCodeWithCredentials(user) {
+    try {
+      // Crie um objeto com email e senha (não é recomendado fazer isso em produção sem criptografar)
+      const credentials = {
+        email: user.email,
+        password: user.password,
+      };
+
+      // Converta o objeto em uma string JSON
+      const dataString = JSON.stringify(credentials);
+
+      // Gere o QR code a partir da string
+      const qrCodeDataUrl = await qrCode.toDataURL(dataString);
+
+      return qrCodeDataUrl;
+    } catch (err) {
+      console.error("Error generating QR code:", err);
+      throw new Error("Unable to generate QR code");
+    }
   }
 
   return service;

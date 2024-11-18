@@ -2,7 +2,7 @@ let mongoose = require("mongoose");
 let Schema = mongoose.Schema;
 
 let monthlyFeeSchema = new Schema({
-  user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+  user: { type: Schema.Types.ObjectId, ref: "Student", required: true },
   amount: { type: Number, required: true },
   startDate: { type: Date, default: Date.now }, // Data de início (data atual)
   dueDate: {

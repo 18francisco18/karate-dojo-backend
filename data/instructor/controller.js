@@ -7,8 +7,14 @@ const InstructorController = {
   removeStudentFromInstructor,
   getStudentsByInstructor,
   getStudentsByInstructorEmail,
+  updateInstructorDetails,
+  getAllStudents,
+  getInstructorDetailsWithStudents,
+  getInstructorByStudentId,
+  removeAllStudentsFromInstructor,
 };
 
+// Obter todos os instrutores
 async function getInstructors() {
   try {
     const instructors = await Instructor.find({ role: "Admin" });
@@ -18,139 +24,162 @@ async function getInstructors() {
   }
 }
 
+// Atualizar detalhes do instrutor
+async function updateInstructorDetails(adminId, updates) {
+  try {
+    const updatedAdmin = await Instructor.findByIdAndUpdate(adminId, updates, {
+      new: true,
+    });
+    if (!updatedAdmin) {
+      throw new Error("Instrutor não encontrado.");
+    }
+    return updatedAdmin;
+  } catch (error) {
+    throw new Error("Erro ao atualizar instrutor: " + error.message);
+  }
+}
+
+// Adicionar aluno a um instrutor
 async function addStudentToInstructor(adminId, studentId) {
   try {
-    // Procurar o administrador (instrutor)
     const admin = await Instructor.findById(adminId).populate("students");
-    if (!admin) {
-      throw new Error("Admin não encontrado.");
+    if (!admin || admin.role !== "Admin") {
+      throw new Error("Admin não encontrado ou não autorizado.");
     }
-
-    // Verificar se o administrador tem o papel de Admin
-    if (admin.role !== "Admin") {
-      throw new Error("O usuário não tem o papel de Admin.");
-    }
-
-    // Verificar se o estudante já está associado ao administrador
     if (admin.students.some((student) => student.toString() === studentId)) {
       throw new Error("Este estudante já está associado a este administrador.");
     }
-
-    // Verificar se o administrador já tem 10 alunos
     if (admin.students.length >= 10) {
       throw new Error("O administrador não pode ter mais de 10 alunos.");
     }
-
-    // Adicionar o estudante à lista de alunos do instrutor
     admin.students.push(studentId);
     await admin.save();
 
-    // Agora, associar o instrutor ao aluno
     const student = await Student.findById(studentId);
-    if (!student) {
-      throw new Error("Aluno não encontrado.");
-    }
-
-    // Verificar se o aluno já tem um instrutor associado
-    if (student.instructor && student.instructor.toString() === adminId) {
-      throw new Error("Este aluno já tem este instrutor associado.");
-    }
-
+    if (!student) throw new Error("Aluno não encontrado.");
     student.instructor = adminId;
     await student.save();
 
     return "Estudante adicionado com sucesso.";
   } catch (error) {
-    console.error("Erro ao adicionar estudante:", error.message);
     throw error;
   }
 }
 
+// Remover aluno de um instrutor
 async function removeStudentFromInstructor(adminId, studentId) {
   try {
-    // Converter o studentId para ObjectId (caso seja uma string)
-    const studentObjectId = mongoose.Types.ObjectId(studentId);
-
-    // Procurar o instrutor (admin)
     const admin = await Instructor.findById(adminId).populate("students");
-    if (!admin) {
-      throw new Error("Admin não encontrado.");
+    if (!admin || admin.role !== "Admin") {
+      throw new Error("Admin não encontrado ou não autorizado.");
     }
-
-    // Verificar se o usuário tem o papel de Admin
-    if (admin.role !== "Admin") {
-      throw new Error("O usuário não tem o papel de Admin.");
-    }
-
-    // Verificar se o aluno está associado ao administrador (comparando como ObjectId)
     const studentIndex = admin.students.findIndex(
-      (student) => student._id.toString() === studentObjectId.toString()
+      (student) => student._id.toString() === studentId.toString()
     );
-
     if (studentIndex === -1) {
       throw new Error(
         "Este estudante não está associado a este administrador."
       );
     }
-
-    // Remover o estudante do instrutor
     admin.students.splice(studentIndex, 1);
     await admin.save();
 
-    // Agora, remover a referência ao instrutor no estudante
     const student = await Student.findById(studentId);
-    if (!student) {
-      throw new Error("Aluno não encontrado.");
-    }
-
-    // Remover a referência ao instrutor no estudante
+    if (!student) throw new Error("Aluno não encontrado.");
     student.instructor = null;
     await student.save();
 
     return "Estudante removido com sucesso.";
   } catch (error) {
-    console.error("Erro ao remover estudante:", error.message);
     throw error;
   }
 }
 
-// Função para obter os estudantes de um administrador
+// Obter estudantes por ID do instrutor
 async function getStudentsByInstructor(adminId) {
   try {
     const admin = await Instructor.findById(adminId).populate("students");
-
-    if (!admin) {
-      throw new Error("Admin não encontrado.");
+    if (!admin || admin.role !== "Admin") {
+      throw new Error("Admin não encontrado ou não autorizado.");
     }
-
-    if (admin.role !== "Admin") {
-      throw new Error("Usuário não é um administrador.");
-    }
-
     return admin.students;
   } catch (error) {
     throw error;
   }
 }
 
-// Função para obter os estudantes de um administrador pelo Email
+// Obter estudantes por email do instrutor
 async function getStudentsByInstructorEmail(adminEmail) {
   try {
     const admin = await Instructor.findOne({ email: adminEmail }).populate(
       "students"
     );
-
-    if (!admin) {
-      throw new Error("Admin não encontrado.");
+    if (!admin || admin.role !== "Admin") {
+      throw new Error("Admin não encontrado ou não autorizado.");
     }
-
-    if (admin.role !== "Admin") {
-      throw new Error("Usuário não é um administrador.");
-    }
-
     return admin.students;
   } catch (error) {
     throw error;
+  }
+}
+
+// Listar todos os alunos
+async function getAllStudents() {
+  try {
+    const students = await Student.find().populate("instructor", "name email");
+    return students;
+  } catch (error) {
+    throw new Error("Erro ao obter todos os estudantes: " + error.message);
+  }
+}
+
+// Obter detalhes do instrutor com lista de alunos
+async function getInstructorDetailsWithStudents(adminId) {
+  try {
+    const instructor = await Instructor.findById(adminId).populate("students");
+    if (!instructor) throw new Error("Instrutor não encontrado.");
+    return instructor;
+  } catch (error) {
+    throw new Error("Erro ao obter detalhes do instrutor: " + error.message);
+  }
+}
+
+// Obter instrutor pelo ID do aluno
+async function getInstructorByStudentId(studentId) {
+  try {
+    const student = await Student.findById(studentId).populate(
+      "instructor",
+      "name email"
+    );
+    if (!student) throw new Error("Aluno não encontrado.");
+    return student.instructor;
+  } catch (error) {
+    throw new Error(
+      "Erro ao obter instrutor pelo ID do aluno: " + error.message
+    );
+  }
+}
+
+// Remover todos os alunos de um instrutor
+async function removeAllStudentsFromInstructor(adminId) {
+  try {
+    const admin = await Instructor.findById(adminId).populate("students");
+    if (!admin) throw new Error("Instrutor não encontrado.");
+
+    await Promise.all(
+      admin.students.map(async (student) => {
+        const s = await Student.findById(student._id);
+        s.instructor = null;
+        return s.save();
+      })
+    );
+
+    admin.students = [];
+    await admin.save();
+
+    return "Todos os estudantes foram removidos do instrutor.";
+  } catch (error) {
+    throw new Error("Erro ao remover todos os estudantes: " + error.message);
   }
 }
 

@@ -7,10 +7,7 @@ function verifyTokenMiddleware(req, res, next) {
     return res.status(401).send({ auth: false, message: "No token provided." });
   }
 
-  // Se o token estiver no formato Bearer <token>, separa o token da palavra 'Bearer'
-  const bearerToken = token.startsWith("Bearer ") ? token.split(" ")[1] : token;
-
-  Users.verifyToken(bearerToken)
+  Users.verifyToken(token)
     .then((decoded) => {
       console.log("Decoded Token:", decoded); // Para fins de depuração
       req.user = decoded; // Armazene o payload decodificado no objeto req

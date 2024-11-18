@@ -3,7 +3,8 @@ const MonthlyFee = require("../../models/monthlyFee");
 
 const MonthlyFeeController = {
   createMonthlyFee,
-  updateMonthlyFeeStatus, // Adiciona a função no controller
+  updateMonthlyFeeStatus,
+  markMonthlyFeeAsPaid,
 };
 
 // Função para criar uma mensalidade
@@ -53,6 +54,32 @@ async function updateMonthlyFeeStatus() {
     );
   } catch (error) {
     console.error("Erro ao atualizar mensalidades:", error.message);
+  }
+}
+
+// Função para marcar a mensalidade como paga
+async function markMonthlyFeeAsPaid(monthlyFeeId) {
+  try {
+    // Encontra a mensalidade pelo ID
+    const monthlyFee = await MonthlyFee.findById(monthlyFeeId);
+    if (!monthlyFee) {
+      throw new Error("Mensalidade não encontrada");
+    }
+
+    // Verifica se o status não é "Pago" antes de atualizar
+    if (monthlyFee.status === "Pago") {
+      throw new Error("Esta mensalidade já está paga");
+    }
+
+    // Atualiza o status da mensalidade para "Pago"
+    monthlyFee.status = "Pago";
+    await monthlyFee.save();
+
+    console.log(`Mensalidade com ID ${monthlyFeeId} foi marcada como paga.`);
+    return monthlyFee;
+  } catch (error) {
+    console.error("Erro ao marcar mensalidade como paga:", error.message);
+    throw error;
   }
 }
 

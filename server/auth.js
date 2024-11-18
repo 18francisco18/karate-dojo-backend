@@ -4,6 +4,8 @@ const express = require("express");
 const User = require("../models/user");
 const Users = require("../data/users");
 const VerifyToken = require("../middleware/token");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
 const AuthRouter = () => {
   let router = express();
@@ -183,6 +185,73 @@ const AuthRouter = () => {
         res.status(500).send({ error: "An error occurred" });
       }
     });
+
+  router.route("/generate-qr").post(async (req, res) => {
+    const { email, password } = req.body; // Espera-se que o frontend envie o email e a senha do usuário
+
+    try {
+      // Validar email e senha
+      if (!email || !password) {
+        return res
+          .status(400)
+          .send({ error: "Email and password are required" });
+      }
+
+      // Criar um objeto JSON com as credenciais do usuário
+      const userCredentials = JSON.stringify({ email, password });
+
+      // Gerar o QR Code a partir do JSON
+      QRCode.toDataURL(userCredentials, (err, qrCodeUrl) => {
+        if (err) {
+          console.error(err);
+          return res.status(500).send({ error: "Error generating QR code" });
+        }
+
+        // Retornar o QR Code gerado como uma URL de imagem
+        res.status(200).send({ qrCodeUrl });
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(500).send({ error: "Error processing QR Code" });
+    }
+  });
+
+  router.route("/validate-qr").post(async (req, res) => {
+    const { code } = req.body; // O QR Code que foi escaneado e enviado pelo frontend
+
+    try {
+      // Decodificar o QR Code (assumindo que o QR Code contenha um JSON com email e senha)
+      const credentials = JSON.parse(code); // O QR Code contém as credenciais do usuário em formato JSON
+
+      const { email, password } = credentials;
+
+      // Encontrar o usuário pelo email
+      const user = await User.findOne({ email });
+
+      if (!user) {
+        return res.status(404).send({ error: "User not found" });
+      }
+
+      // Comparar a senha enviada com a armazenada no banco de dados
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
+        return res.status(400).send({ error: "Invalid password" });
+      }
+
+      // Criar um token JWT
+      const token = jwt.sign(
+        { id: user._id, email: user.email, role: user.role },
+        config.secret,
+        { expiresIn: config.expiresPassword }
+      );
+
+      // Retornar o token
+      res.status(200).send({ token });
+    } catch (err) {
+      console.error(err);
+      res.status(500).send({ error: "Error processing QR Code" });
+    }
+  });
 
   router.use(VerifyToken);
 
