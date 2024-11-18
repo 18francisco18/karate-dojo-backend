@@ -43,10 +43,17 @@ const GraduationRouter = () => {
           comments,
           instructorId
         );
+
         res.status(200).json(result);
       } catch (error) {
-        console.log("Erro ao avaliar graduação:", error.message);
-        res.status(500).json({ message: error.message });
+        console.error("Erro ao avaliar graduação:", error.message);
+        if (error.message.includes("já foi avaliada")) {
+          // Se a graduação já foi avaliada, envia uma resposta apropriada
+          res.status(400).json({ message: "Esta graduação já foi avaliada." });
+        } else {
+          // Outros erros gerais
+          res.status(500).json({ message: error.message });
+        }
       }
     }
   );

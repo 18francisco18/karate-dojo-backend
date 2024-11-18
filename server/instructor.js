@@ -144,8 +144,7 @@ const InstructorRouter = () => {
     }
   });
 
-  // Rota para suspender um aluno
-  router.post("/suspend-student", async (req, res) => {
+  router.post("/unsuspend-student", VerifyToken(), async (req, res) => {
     const { studentId } = req.body;
 
     if (!studentId) {
@@ -153,16 +152,15 @@ const InstructorRouter = () => {
     }
 
     try {
-      // Chama a função de suspensão do aluno
-      const suspendedStudent = await MonthlyFeeController.suspendStudent(
-        studentId
-      );
+      // Chama a função para retirar a suspensão do aluno
+      const unsuspendedStudent =
+        await MonthlyFeeController.manuallyUnsuspendStudent(studentId);
       res.status(200).json({
-        message: "Aluno suspenso com sucesso.",
-        student: suspendedStudent,
+        message: "Suspensão do aluno removida com sucesso.",
+        student: unsuspendedStudent,
       });
     } catch (error) {
-      console.error("Erro ao suspender aluno:", error.message);
+      console.error("Erro ao remover suspensão do aluno:", error.message);
       res.status(500).json({ error: error.message });
     }
   });

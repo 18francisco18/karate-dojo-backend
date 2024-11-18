@@ -48,50 +48,44 @@ async function evaluateGraduation(id, score, comments, instructorId) {
       throw new Error("Graduação não encontrada");
     }
 
+    // Verificar se a graduação já foi avaliada
+    if (graduation.evaluated) {
+      throw new Error("Esta graduação já foi avaliada");
+    }
+
     const student = graduation.student;
     if (!student) {
       throw new Error("Nenhum estudante associado a esta graduação");
     }
 
-    // Verificar se os dados do estudante estão completos
-    if (!student.name) {
-      console.error(
-        `Dados do estudante estão incompletos para o estudante com ID: ${student._id}`
-      );
-      throw new Error(
-        `Dados do estudante estão incompletos para o estudante com ID: ${student._id}`
-      );
+    // Buscar o instrutor pelo ID para obter seu nome
+    const instructor = await Instructor.findById(instructorId);
+    if (!instructor) {
+      throw new Error("Instrutor não encontrado");
     }
 
-    // Buscar o instrutor pelo ID passado no token
-    let instructorName = "Sensei Desconhecido";
-    if (instructorId) {
-      const instructor = await Instructor.findById(instructorId).select("name");
-      if (instructor) {
-        instructorName = instructor.name;
-      }
-    }
+    const instructorName = instructor.name;
 
     // Atualizar os dados da graduação
     graduation.score = score;
     graduation.comments = comments;
+    graduation.evaluated = true; // Marca a graduação como avaliada
     await graduation.save();
 
     // Atualizar o cinto do aluno se a pontuação for suficiente
     if (score >= 50) {
       student.belt = graduation.level;
       await student.save();
-
-      // Gerar diploma após avaliação bem-sucedida
-      const diplomaPath = await generateDiploma(graduation, instructorName);
-      console.log(`Diploma gerado em: ${diplomaPath}`);
     }
 
-    // Retorna a resposta com o nome do instrutor
+    // Gerar o PDF do diploma após salvar a graduação
+    const diplomaPath = await generateDiploma(graduation, instructorName);
+    console.log("Diploma gerado em:", diplomaPath);
+
     return {
       message: "Graduação avaliada com sucesso",
       graduation,
-      instructor: instructorName,
+      diplomaPath, // Adicionando o caminho do diploma ao retorno
     };
   } catch (error) {
     console.error("Erro ao avaliar graduação:", error.message);

@@ -8,7 +8,7 @@ const MonthlyFeeController = {
   updateMonthlyFeeStatus,
   markMonthlyFeeAsPaid,
   notifyOverdueMonthlyFee,
-  suspendStudent,
+  manuallyUnsuspendStudent,
 };
 
 // Função para criar uma mensalidade
@@ -51,13 +51,23 @@ async function updateMonthlyFeeStatus() {
       status: { $ne: "Pago" }, // Exclui as que já estão pagas
     });
 
-    // Atualiza o status das mensalidades vencidas para 'Atrasado'
+    // Atualiza o status das mensalidades vencidas para 'Atrasado' e suspende o aluno automaticamente
     for (let fee of overdueFees) {
       fee.status = "Atrasado";
       await fee.save();
 
       // Enviar um aviso por e-mail ao aluno
       await notifyOverdueMonthlyFee(fee);
+
+      // Suspender o aluno automaticamente
+      const student = await Student.findById(fee.user);
+      if (student && !student.suspended) {
+        student.suspended = true;
+        await student.save();
+        console.log(
+          `Aluno com ID ${student._id} foi suspenso automaticamente.`
+        );
+      }
     }
 
     console.log(
@@ -85,6 +95,22 @@ async function markMonthlyFeeAsPaid(monthlyFeeId) {
     // Atualiza o status da mensalidade para "Pago"
     monthlyFee.status = "Pago";
     await monthlyFee.save();
+
+    // Verificar se todas as mensalidades estão pagas para remover a suspensão
+    const unpaidFees = await MonthlyFee.find({
+      user: monthlyFee.user,
+      status: { $ne: "Pago" },
+    });
+    if (unpaidFees.length === 0) {
+      const student = await Student.findById(monthlyFee.user);
+      if (student && student.suspended) {
+        student.suspended = false;
+        await student.save();
+        console.log(
+          `Suspensão do aluno com ID ${student._id} foi removida automaticamente.`
+        );
+      }
+    }
 
     console.log(`Mensalidade com ID ${monthlyFeeId} foi marcada como paga.`);
     return monthlyFee;
@@ -125,8 +151,8 @@ Equipe da Academia`;
   }
 }
 
-// Função para suspender o aluno
-async function suspendStudent(studentId) {
+// Função para retirar manualmente a suspensão do aluno
+async function manuallyUnsuspendStudent(studentId) {
   try {
     // Busca os detalhes do aluno
     const student = await Student.findById(studentId);
@@ -135,13 +161,19 @@ async function suspendStudent(studentId) {
     }
 
     // Atualiza o status de suspensão do aluno
-    student.suspended = true;
-    await student.save();
+    if (student.suspended) {
+      student.suspended = false;
+      await student.save();
+      console.log(
+        `Suspensão do aluno com ID ${studentId} foi removida manualmente.`
+      );
+    } else {
+      console.log(`Aluno com ID ${studentId} não está suspenso.`);
+    }
 
-    console.log(`Aluno com ID ${studentId} foi suspenso.`);
     return student;
   } catch (error) {
-    console.error("Erro ao suspender aluno:", error.message);
+    console.error("Erro ao remover suspensão do aluno:", error.message);
     throw error;
   }
 }

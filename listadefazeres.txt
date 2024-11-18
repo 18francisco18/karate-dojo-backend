@@ -7,12 +7,12 @@ Gestão de Atletas e Mensalidades:
 • Deve ser permitido aos instrutores fazer uma listagem de pendentes (atletas com mensalidades em
     atraso). Para cada atleta com mensalidade em atraso, deverá existir a opção para enviar um email a
     alertar a falta de pagamento. Deve ser dada ainda a possibilidade ao instrutor de bloquear o acesso
-    (suspender) ao atleta. O EMAIL ESTA AUTOMATICO
-    • Os atletas podem consultar o estado das suas mensalidades e verificar datas de vencimento.
+    (suspender) ao atleta. O EMAIL ESTA AUTOMATICO, A SUSPENSAO TAMBEM E SO SAI QUANDO PAGA
+    • Os atletas podem consultar o estado das suas mensalidades e verificar datas de vencimento. FEITO
     Exames de Graduação:
     • Os instrutores podem propor datas para exames de graduação e definir um limite máximo de inscritos
-    por exame;
-    • Os atletas podem inscrever-se nos exames até ao limite máximo estabelecido pelo instrutor;
+    por exame; FEITO MAS APENAS UM ESTUDANTE POR EXAME, POR EXEMPLO, O INSTRUTOR CRIA UM EXAME E O ALUNO SE INSCREVE
+    • Os atletas podem inscrever-se nos exames até ao limite máximo estabelecido pelo instrutor; FEITO
     • O sistema deve notificar automaticamente os atletas quando atingirem os requisitos para se
     inscreverem em novos exames.
     • Filtros de pesquisa e ordenação por graduação (cor do cinto), data, vagas disponíveis, etc.
