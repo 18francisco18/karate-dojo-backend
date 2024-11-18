@@ -1,16 +1,13 @@
-// pdfService.js
 const PDFDocument = require("pdfkit");
 const fs = require("fs");
 const path = require("path");
 
-async function generateDiploma(graduation) {
+async function generateDiploma(graduation, instructorName) {
   return new Promise((resolve, reject) => {
-    // Verificar se os campos necessários estão presentes
     if (!graduation.user || !graduation.user.name) {
       return reject(new Error("Dados do usuário estão incompletos"));
     }
 
-    // Continuação da criação do PDF
     const doc = new PDFDocument();
     const dirPath = path.join(__dirname, "../diplomas");
     const filePath = path.join(dirPath, `${graduation._id}.pdf`);
@@ -28,6 +25,7 @@ async function generateDiploma(graduation) {
       align: "center",
       valign: "top",
     });
+
     doc
       .fontSize(30)
       .font("Helvetica-Bold")
@@ -69,13 +67,28 @@ async function generateDiploma(graduation) {
         .text(`Comentário: ${graduation.comments}`, { align: "center" });
     }
 
-    // Adiciona assinatura fictícia
+    // Espaço adicional antes da assinatura
+    doc.moveDown(3);
+
+    // Adiciona a imagem de assinatura fictícia
+    const signaturePath = path.join(__dirname, "../assets/masterSignature.png");
+    const signatureWidth = 150; // Largura da imagem de assinatura
+    const pageWidth = doc.page.width; // Largura da página
+    const signatureX = (pageWidth - signatureWidth) / 2; // Centraliza a imagem
+    const signatureY = doc.y; // Usa a posição atual da linha
+
+    doc.image(signaturePath, signatureX, signatureY, {
+      width: signatureWidth,
+      height: 50,
+    });
+
+    // Adiciona a linha de assinatura e o nome do instrutor
     doc
       .moveDown(2)
       .fontSize(16)
-      .text("_________________________", { align: "right" })
-      .text("O Mestre:", { align: "right" })
-      .text("Cobra Kai Dojo", { align: "right" });
+      .text("_________________________", { align: "center" })
+      .text(`O Mestre: ${instructorName}`, { align: "center" })
+      .text("Cobra Kai Dojo", { align: "center" });
 
     doc.end();
 

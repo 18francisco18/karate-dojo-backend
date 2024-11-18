@@ -41,15 +41,14 @@ async function createGraduation(userId, level, instructorId, location, date) {
 }
 
 // 2. Avaliar Graduação
-async function evaluateGraduation(id, score, comments) {
+async function evaluateGraduation(id, score, comments, instructorId) {
   if (score < 0 || score > 100) {
     throw new Error("Pontuação deve estar entre 0 e 100");
   }
 
   try {
-    const graduation = await Graduation.findById(id)
-      .populate("user")
-      .populate("instructor");
+    // Busca a graduação e o aluno
+    const graduation = await Graduation.findById(id).populate("user");
 
     if (!graduation) {
       throw new Error("Graduação não encontrada");
@@ -60,22 +59,35 @@ async function evaluateGraduation(id, score, comments) {
       throw new Error("Dados do usuário estão incompletos");
     }
 
+    // Buscar o instrutor pelo ID passado no body
+    let instructorName = "Sensei Desconhecido";
+    if (instructorId) {
+      const instructor = await Instructor.findById(instructorId).select("name");
+      if (instructor) {
+        instructorName = instructor.name;
+      }
+    }
+
+    // Atualizar os dados da graduação
     graduation.score = score;
     graduation.comments = comments;
     await graduation.save();
 
+    // Atualizar o cinto do aluno se a pontuação for suficiente
     if (score >= 50) {
       user.belt = graduation.level;
       await user.save();
 
       // Gerar diploma após avaliação bem-sucedida
-      const diplomaPath = await generateDiploma(graduation);
+      const diplomaPath = await generateDiploma(graduation, instructorName);
       console.log(`Diploma gerado em: ${diplomaPath}`);
     }
 
+    // Retorna a resposta com o nome do instrutor
     return {
       message: "Graduação avaliada com sucesso",
       graduation,
+      instructor: instructorName,
     };
   } catch (error) {
     console.error("Erro ao avaliar graduação:", error.message);

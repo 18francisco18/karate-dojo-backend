@@ -31,17 +31,18 @@ const GraduationRouter = () => {
   // Rota para avaliar graduação
   router.patch("/evaluate/:id", async (req, res) => {
     try {
-      const { score, comments } = req.body;
+      const { score, comments, instructorId } = req.body; // Inclui o instructorId
       const { id } = req.params;
 
       const result = await GraduationController.evaluateGraduation(
         id,
         score,
-        comments
+        comments,
+        instructorId // Passa o instructorId
       );
       res.status(200).json(result);
     } catch (error) {
-      console.log("Erro ao avaliar graduação:", error.message); // Adicionado para depuração
+      console.log("Erro ao avaliar graduação:", error.message);
       res.status(500).json({ message: error.message });
     }
   });

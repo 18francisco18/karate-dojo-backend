@@ -20,7 +20,7 @@ let graduationSchema = new Schema({
   },
   date: { type: Date, default: Date.now },
   score: { type: Number, min: 0, max: 100 },
-  instructor: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  instructor: { type: mongoose.Schema.Types.ObjectId, ref: "Instructor" },
   location: { type: String },
   comments: { type: String },
   certificateUrl: { type: String },
