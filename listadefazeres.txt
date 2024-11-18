@@ -12,11 +12,11 @@ Gestão de Atletas e Mensalidades:
     Exames de Graduação:
     • Os instrutores podem propor datas para exames de graduação e definir um limite máximo de inscritos
     por exame; FEITO MAS APENAS UM ESTUDANTE POR EXAME, POR EXEMPLO, O INSTRUTOR CRIA UM EXAME E O ALUNO SE INSCREVE
-    • Os atletas podem inscrever-se nos exames até ao limite máximo estabelecido pelo instrutor; FEITO
+    • Os atletas podem inscrever-se nos exames até ao limite máximo estabelecido pelo instrutor; PARA JA PODEM INSCREVER SE SEM LIMITES
     • O sistema deve notificar automaticamente os atletas quando atingirem os requisitos para se
-    inscreverem em novos exames.
-    • Filtros de pesquisa e ordenação por graduação (cor do cinto), data, vagas disponíveis, etc.
+    inscreverem em novos exames. AINDA NAO IMPLEMENTADO
+    • Filtros de pesquisa e ordenação por graduação (cor do cinto), data, vagas disponíveis, etc. NAO IMPLEMENTADO
     Gestão de Conteúdo:
     • Interface de administração segura para que os instrutores possam gerir informações sobre os atletas,
-    exames e mensalidades;
-    • Adicionar/remover atletas e propor novos exames de graduação.
+    exames e mensalidades; FEITO ACHO
+    • Adicionar/remover atletas e propor novos exames de graduação. SO PROPOR É QUE NAO EXISTE
