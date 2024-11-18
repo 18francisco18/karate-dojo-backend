@@ -18,7 +18,7 @@ async function createGraduation(level, instructorId, location, date) {
     const graduationDate = date || new Date();
     const graduation = new Graduation({
       level,
-      nstructor: instructorId,
+      instructor: instructorId,
       location,
       date: graduationDate,
     });

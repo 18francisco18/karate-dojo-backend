@@ -42,6 +42,7 @@ let studentSchema = new mongoose.Schema({
   monthlyFee: [{ type: mongoose.Schema.Types.ObjectId, ref: "MonthlyFee" }],
   monthlyPlan: [{ type: mongoose.Schema.Types.ObjectId, ref: "MonthlyPlan" }],
   graduation: [{ type: mongoose.Schema.Types.ObjectId, ref: "Graduation" }],
+  suspended: { type: Boolean, default: false }, 
 });
 
 // Create models

@@ -1,0 +1,22 @@
+Autenticação de Utilizador:
+• Registo de um utilizador (atleta) - Deverá escolher qual é o instrutor que vai fazer as aulas.; FEITO
+• Login de um utilizador com username/password e por QR Code FEITO
+• Perfis de utilizador com informações pessoais, histórico de mensalidades e graduações. FEITO
+Gestão de Atletas e Mensalidades:
+• Os instrutores podem gerir os seus atletas, registando o pagamento de mensalidades;  FEITO
+• Deve ser permitido aos instrutores fazer uma listagem de pendentes (atletas com mensalidades em
+    atraso). Para cada atleta com mensalidade em atraso, deverá existir a opção para enviar um email a
+    alertar a falta de pagamento. Deve ser dada ainda a possibilidade ao instrutor de bloquear o acesso
+    (suspender) ao atleta. O EMAIL ESTA AUTOMATICO
+    • Os atletas podem consultar o estado das suas mensalidades e verificar datas de vencimento.
+    Exames de Graduação:
+    • Os instrutores podem propor datas para exames de graduação e definir um limite máximo de inscritos
+    por exame;
+    • Os atletas podem inscrever-se nos exames até ao limite máximo estabelecido pelo instrutor;
+    • O sistema deve notificar automaticamente os atletas quando atingirem os requisitos para se
+    inscreverem em novos exames.
+    • Filtros de pesquisa e ordenação por graduação (cor do cinto), data, vagas disponíveis, etc.
+    Gestão de Conteúdo:
+    • Interface de administração segura para que os instrutores possam gerir informações sobre os atletas,
+    exames e mensalidades;
+    • Adicionar/remover atletas e propor novos exames de graduação.

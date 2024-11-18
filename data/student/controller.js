@@ -2,10 +2,12 @@ const MonthlyPlan = require("../../models/monthlyPlan");
 const { Student, Instructor } = require("../../models/user"); // Importando o modelo Student
 const Graduation = require("../../models/graduation");
 const MonthlyFeeController = require("../monthlyFees/controller");
+const mongoose = require("mongoose");
 
 const StudentController = {
   getAvailablePlans,
   choosePlan,
+  cancelPlan,
   getStudentDetails,
   enrollInGraduation,
   chooseInstructor,
@@ -73,9 +75,12 @@ async function enrollInGraduation(studentId, graduationId) {
 }
 
 async function choosePlan(studentId, planType) {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     // Encontra o aluno
-    const student = await Student.findById(studentId);
+    const student = await Student.findById(studentId).session(session);
     if (!student) {
       throw new Error("Aluno não encontrado.");
     }
@@ -113,22 +118,78 @@ async function choosePlan(studentId, planType) {
     });
 
     // Salva o plano no banco de dados
-    await newPlan.save();
+    await newPlan.save({ session });
 
     // Adiciona o plano ao campo monthlyPlan do aluno
-    student.monthlyPlan = student.monthlyPlan || []; // Garante que monthlyPlan seja um array
-    student.monthlyPlan.push(newPlan._id); // Aqui estamos adicionando o ObjectId do plano
+    student.monthlyPlan.push(newPlan._id);
 
-    // Salva o aluno com o plano
-    await student.save();
+    // Cria uma nova mensalidade para o aluno
+    const newMonthlyFee = await MonthlyFeeController.createMonthlyFee(
+      studentId,
+      price
+    );
 
-    // Retorna o plano escolhido
+    // Adiciona a nova mensalidade ao campo monthlyFee do aluno
+    student.monthlyFee.push(newMonthlyFee._id);
+
+    // Salva o estudante com o plano e a mensalidade associados
+    await student.save({ session });
+
+    // Confirma a transação
+    await session.commitTransaction();
+    session.endSession();
+
+    // Busca o aluno atualizado e popula o campo monthlyPlan para verificar o resultado
+    const updatedStudent = await Student.findById(studentId)
+      .populate("monthlyPlan")
+      .populate("monthlyFee");
+
+    // Retorna o plano escolhido e a mensalidade criada
     return {
       message: "Plano escolhido com sucesso",
       plan: newPlan,
+      monthlyFee: newMonthlyFee,
+      updatedStudent,
     };
   } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
     console.error("Erro ao escolher plano:", error.message);
+    throw error;
+  }
+}
+
+async function cancelPlan(studentId) {
+  try {
+    // Encontra o aluno
+    const student = await Student.findById(studentId).populate("monthlyPlan");
+    if (!student) {
+      throw new Error("Aluno não encontrado.");
+    }
+
+    // Verifica se o aluno tem um plano associado
+    if (!student.monthlyPlan || student.monthlyPlan.length === 0) {
+      throw new Error("Nenhum plano associado ao aluno.");
+    }
+
+    // Obtém o plano atual
+    const currentPlanId = student.monthlyPlan[0]._id;
+
+    // Remove o plano do aluno
+    student.monthlyPlan = [];
+
+    // Salva as alterações do aluno
+    await student.save();
+
+    // Remove o plano do banco de dados
+    await MonthlyPlan.findByIdAndDelete(currentPlanId);
+
+    // Retorna uma mensagem de confirmação
+    return {
+      message: "Plano cancelado com sucesso.",
+    };
+  } catch (error) {
+    console.error("Erro ao cancelar plano:", error.message);
     throw error;
   }
 }

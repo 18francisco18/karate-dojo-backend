@@ -43,6 +43,25 @@ const StudentRouter = () => {
     }
   });
 
+  router.delete("/cancel-plan", VerifyToken(), async (req, res) => {
+    const studentId = req.userId; // O ID do aluno vem do token verificado no middleware
+  
+    // Verifica se o ID do aluno foi passado corretamente
+    if (!studentId) {
+      return res.status(400).json({ error: "ID do aluno não encontrado." });
+    }
+  
+    try {
+      // Chama o método cancelPlan do StudentController
+      const result = await StudentController.cancelPlan(studentId);
+      res.status(200).json(result);
+    } catch (error) {
+      console.error("Erro ao cancelar plano:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+
   // Rota para o aluno escolher um instrutor
   router.post(
     "/choose-instructor",

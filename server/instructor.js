@@ -48,36 +48,32 @@ const InstructorRouter = () => {
     }
   });
 
-  router.post(
-    "/instructor/remove-student",
-    VerifyToken(),
-    async (req, res) => {
-      const { studentId } = req.body;
-      const instructorId = req.userId; // ID do instrutor obtido do token
+  router.post("/instructor/remove-student", VerifyToken(), async (req, res) => {
+    const { studentId } = req.body;
+    const instructorId = req.userId; // ID do instrutor obtido do token
 
-      // Verificar se o ID do instrutor está presente
-      if (!instructorId) {
-        return res.status(403).json({
-          error: "Acesso negado. Apenas instrutores podem remover alunos.",
-        });
-      }
-
-      if (!studentId) {
-        return res.status(400).json({ error: "ID do estudante é necessário" });
-      }
-
-      try {
-        const result = await InstructorController.removeStudentFromInstructor(
-          instructorId,
-          studentId
-        );
-        return res.status(200).json({ message: result });
-      } catch (error) {
-        console.error("Erro na rota /remove-student:", error.message);
-        return res.status(500).json({ error: error.message });
-      }
+    // Verificar se o ID do instrutor está presente
+    if (!instructorId) {
+      return res.status(403).json({
+        error: "Acesso negado. Apenas instrutores podem remover alunos.",
+      });
     }
-  );
+
+    if (!studentId) {
+      return res.status(400).json({ error: "ID do estudante é necessário" });
+    }
+
+    try {
+      const result = await InstructorController.removeStudentFromInstructor(
+        instructorId,
+        studentId
+      );
+      return res.status(200).json({ message: result });
+    } catch (error) {
+      console.error("Erro na rota /remove-student:", error.message);
+      return res.status(500).json({ error: error.message });
+    }
+  });
 
   // Rota para obter todos os estudantes associados a um instrutor pelo ID
   router.get("/instructor/:id/students", VerifyToken, async (req, res) => {
@@ -145,6 +141,29 @@ const InstructorRouter = () => {
       });
     } catch (error) {
       res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Rota para suspender um aluno
+  router.post("/suspend-student", async (req, res) => {
+    const { studentId } = req.body;
+
+    if (!studentId) {
+      return res.status(400).json({ error: "ID do aluno é necessário" });
+    }
+
+    try {
+      // Chama a função de suspensão do aluno
+      const suspendedStudent = await MonthlyFeeController.suspendStudent(
+        studentId
+      );
+      res.status(200).json({
+        message: "Aluno suspenso com sucesso.",
+        student: suspendedStudent,
+      });
+    } catch (error) {
+      console.error("Erro ao suspender aluno:", error.message);
+      res.status(500).json({ error: error.message });
     }
   });
 
