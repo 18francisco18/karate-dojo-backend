@@ -1,11 +1,14 @@
 const MonthlyPlan = require("../../models/monthlyPlan");
-const { Student } = require("../../models/user"); // Importando o modelo Student
+const { Student, Instructor } = require("../../models/user"); // Importando o modelo Student
+const Graduation = require("../../models/graduation");
 const MonthlyFeeController = require("../monthlyFees/controller");
 
 const StudentController = {
   getAvailablePlans,
   choosePlan,
   getStudentDetails,
+  enrollInGraduation,
+  chooseInstructor,
 };
 
 // Função para obter os planos disponíveis
@@ -23,10 +26,49 @@ async function getAvailablePlans() {
   }
 }
 
+async function enrollInGraduation(studentId, graduationId) {
+  try {
+    // Busca o aluno pelo ID
+    const student = await Student.findById(studentId);
+    if (!student) {
+      throw new Error("Aluno não encontrado.");
+    }
+
+    // Busca a graduação pelo ID
+    const graduation = await Graduation.findById(graduationId);
+    if (!graduation) {
+      throw new Error("Graduação não encontrada.");
+    }
+
+    // Verifica se o aluno já está inscrito na graduação
+    if (graduation.students.includes(studentId)) {
+      throw new Error("Aluno já está inscrito nesta graduação.");
+    }
+
+    // Associa o aluno à graduação
+    graduation.students.push(studentId);
+    await graduation.save();
+
+    // Adiciona a graduação ao aluno
+    student.graduations = student.graduations || []; // Garante que graduations seja um array
+    student.graduations.push(graduationId);
+    await student.save();
+
+    // Retorna a confirmação da inscrição
+    return {
+      message: "Inscrição na graduação realizada com sucesso",
+      graduation,
+    };
+  } catch (error) {
+    console.error("Erro ao inscrever aluno na graduação:", error.message);
+    throw new Error("Erro ao inscrever aluno na graduação: " + error.message);
+  }
+}
+
 async function choosePlan(studentId, planType) {
   try {
     // Encontra o aluno
-    const student = await Student.findById(studentId); // Alterado para usar o modelo Student
+    const student = await Student.findById(studentId);
     if (!student) {
       throw new Error("Aluno não encontrado.");
     }
@@ -67,24 +109,16 @@ async function choosePlan(studentId, planType) {
     await newPlan.save();
 
     // Adiciona o plano ao campo monthlyPlan do aluno
+    student.monthlyPlan = student.monthlyPlan || []; // Garante que monthlyPlan seja um array
     student.monthlyPlan.push(newPlan._id); // Aqui estamos adicionando o ObjectId do plano
 
-    // Cria a mensalidade para o aluno
-    const monthlyFee = await MonthlyFeeController.createMonthlyFee(
-      studentId,
-      price
-    );
-
-    // Associa a mensalidade criada ao campo 'monthlyFee' do aluno
-    student.monthlyFee.push(monthlyFee._id); // Associando o ID da mensalidade
-
-    // Salva o aluno com o plano e a mensalidade
+    // Salva o aluno com o plano
     await student.save();
 
-    // Retorna o plano e a mensalidade
+    // Retorna o plano escolhido
     return {
+      message: "Plano escolhido com sucesso",
       plan: newPlan,
-      monthlyFee: monthlyFee,
     };
   } catch (error) {
     console.error("Erro ao escolher plano:", error.message);
@@ -100,6 +134,49 @@ async function getStudentDetails(studentId) {
     return student;
   } catch (error) {
     throw new Error("Erro ao obter detalhes do aluno: " + error.message);
+  }
+}
+
+async function chooseInstructor(studentId, instructorId) {
+  try {
+    console.log("ID do Aluno recebido:", studentId);
+    console.log("ID do Instrutor recebido:", instructorId);
+
+    // Buscar aluno pelo ID
+    const student = await Student.findById(studentId);
+    if (!student) {
+      throw new Error("Aluno não encontrado.");
+    }
+
+    // Buscar instrutor pelo ID
+    const instructor = await Instructor.findById(instructorId).populate(
+      "students"
+    );
+    if (!instructor) {
+      throw new Error("Instrutor não encontrado.");
+    }
+
+    // Verificar se o aluno já está associado a este instrutor
+    if (student.instructor && student.instructor.toString() === instructorId) {
+      throw new Error("Você já está associado a este instrutor.");
+    }
+
+    // Limitar o número máximo de alunos que um instrutor pode ter
+    if (instructor.students.length >= 10) {
+      throw new Error("Este instrutor não pode ter mais de 10 alunos.");
+    }
+
+    // Associar o aluno ao instrutor
+    instructor.students.push(studentId);
+    await instructor.save();
+
+    student.instructor = instructorId;
+    await student.save();
+
+    return "Instrutor escolhido com sucesso.";
+  } catch (error) {
+    console.error("Erro ao escolher instrutor:", error.message);
+    throw new Error("Erro ao escolher instrutor: " + error.message);
   }
 }
 

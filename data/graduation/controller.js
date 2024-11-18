@@ -13,26 +13,18 @@ const GraduationController = {
 };
 
 // 1. Criar Graduação
-async function createGraduation(userId, level, instructorId, location, date) {
+async function createGraduation(level, instructorId, location, date) {
   try {
     const graduationDate = date || new Date();
     const graduation = new Graduation({
-      user: userId,
-      level: level,
+      level,
       instructor: instructorId,
-      location: location,
+      location,
       date: graduationDate,
+      students: [], // Inicializa com um array vazio de estudantes
     });
 
     await graduation.save();
-
-    const user = await Student.findById(userId); // Altere para Student
-    if (!user) {
-      throw new Error("Usuário não encontrado");
-    }
-
-    user.graduation.push(graduation._id);
-    await user.save();
 
     return { message: "Graduação criada com sucesso", graduation };
   } catch (error) {

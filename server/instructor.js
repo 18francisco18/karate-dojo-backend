@@ -13,18 +13,6 @@ const InstructorRouter = () => {
   router.use(bodyParser.json({ limit: "100mb" }));
   router.use(bodyParser.urlencoded({ limit: "100mb", extended: true }));
 
-  // ===================== ROTAS =====================
-
-  // Rota para obter todos os instrutores
-  router.get("/instructors", VerifyToken, async (req, res) => {
-    try {
-      const instructors = await InstructorController.getInstructors();
-      res.status(200).json(instructors);
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
   // Rota para obter um instrutor pelo ID
   router.get("/instructor/:id", VerifyToken, async (req, res) => {
     const { id } = req.params;
@@ -40,44 +28,7 @@ const InstructorRouter = () => {
     }
   });
 
-  // Rota para criar um novo instrutor
-  router.post("/instructor", VerifyToken, async (req, res) => {
-    const instructorData = req.body;
-    try {
-      const newInstructor = await InstructorController.createInstructor(
-        instructorData
-      );
-      res.status(201).json(newInstructor);
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  // Rota para atualizar detalhes do instrutor
-  router.put("/instructor/:id", VerifyToken, async (req, res) => {
-    const { id } = req.params;
-    const updates = req.body;
-    try {
-      const updatedInstructor =
-        await InstructorController.updateInstructorDetails(id, updates);
-      res.status(200).json(updatedInstructor);
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  // Rota para remover um instrutor pelo ID
-  router.delete("/instructor/:id", VerifyToken, async (req, res) => {
-    const { id } = req.params;
-    try {
-      const result = await InstructorController.removeInstructorById(id);
-      res.status(200).json({ message: result });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  // Rota para adicionar um aluno a um instrutor
+  // Rota para adicionar um aluno a um instrutor (nao esta a ser usada pois o aluno é adicionado ao instrutor na rota /)
   router.post("/instructor/:id/add-student", VerifyToken, async (req, res) => {
     const { id } = req.params;
     const { studentId } = req.body;
@@ -97,13 +48,19 @@ const InstructorRouter = () => {
     }
   });
 
-  // Rota para remover um aluno de um instrutor
-  router.delete(
-    "/instructor/:id/remove-student",
-    VerifyToken,
+  router.post(
+    "/instructor/remove-student",
+    VerifyToken(),
     async (req, res) => {
-      const { id } = req.params;
       const { studentId } = req.body;
+      const instructorId = req.userId; // ID do instrutor obtido do token
+
+      // Verificar se o ID do instrutor está presente
+      if (!instructorId) {
+        return res.status(403).json({
+          error: "Acesso negado. Apenas instrutores podem remover alunos.",
+        });
+      }
 
       if (!studentId) {
         return res.status(400).json({ error: "ID do estudante é necessário" });
@@ -111,12 +68,13 @@ const InstructorRouter = () => {
 
       try {
         const result = await InstructorController.removeStudentFromInstructor(
-          id,
+          instructorId,
           studentId
         );
-        res.status(200).json({ message: result });
+        return res.status(200).json({ message: result });
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error("Erro na rota /remove-student:", error.message);
+        return res.status(500).json({ error: error.message });
       }
     }
   );
@@ -174,7 +132,7 @@ const InstructorRouter = () => {
     }
   );
 
-  // 10. Marcar uma mensalidade como paga
+  // Rota para marcar uma mensalidade como paga
   router.patch("/monthly-fees/:id/pay", async (req, res) => {
     try {
       const monthlyFeeId = req.params.id;

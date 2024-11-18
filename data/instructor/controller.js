@@ -27,7 +27,9 @@ async function getInstructors() {
 // Atualizar detalhes do instrutor
 async function updateInstructorDetails(adminId, updates) {
   try {
-    const updatedAdmin = await Instructor.findByIdAndUpdate(adminId, updates, { new: true });
+    const updatedAdmin = await Instructor.findByIdAndUpdate(adminId, updates, {
+      new: true,
+    });
     if (!updatedAdmin) {
       throw new Error("Instrutor não encontrado.");
     }
@@ -38,48 +40,68 @@ async function updateInstructorDetails(adminId, updates) {
 }
 
 // Adicionar aluno a um instrutor
-async function addStudentToInstructor(adminId, studentId) {
+// Função para permitir que um aluno escolha um instrutor
+async function addStudentToInstructor(instructorId, studentId) {
   try {
-    const admin = await Instructor.findById(adminId).populate("students");
-    if (!admin || admin.role !== "Admin") {
-      throw new Error("Admin não encontrado ou não autorizado.");
+    const instructor = await Instructor.findById(instructorId).populate(
+      "students"
+    );
+    if (!instructor) {
+      throw new Error("Instrutor não encontrado.");
     }
-    if (admin.students.some(student => student.toString() === studentId)) {
-      throw new Error("Este estudante já está associado a este administrador.");
-    }
-    if (admin.students.length >= 10) {
-      throw new Error("O administrador não pode ter mais de 10 alunos.");
-    }
-    admin.students.push(studentId);
-    await admin.save();
 
+    // Verificar se o aluno já está associado a este instrutor
+    if (
+      instructor.students.some((student) => student.toString() === studentId)
+    ) {
+      throw new Error("Você já está associado a este instrutor.");
+    }
+
+    // Limitar o número máximo de alunos que um instrutor pode ter
+    if (instructor.students.length >= 10) {
+      throw new Error("Este instrutor não pode ter mais de 10 alunos.");
+    }
+
+    // Adicionar aluno à lista de alunos do instrutor
+    instructor.students.push(studentId);
+    await instructor.save();
+
+    // Atualizar o instrutor associado no perfil do aluno
     const student = await Student.findById(studentId);
     if (!student) throw new Error("Aluno não encontrado.");
-    student.instructor = adminId;
+    student.instructor = instructorId;
     await student.save();
 
-    return "Estudante adicionado com sucesso.";
+    return "Instrutor escolhido com sucesso.";
   } catch (error) {
-    throw error;
+    throw new Error("Erro ao associar aluno ao instrutor: " + error.message);
   }
 }
 
 // Remover aluno de um instrutor
-async function removeStudentFromInstructor(adminId, studentId) {
+async function removeStudentFromInstructor(instructorId, studentId) {
   try {
-    const admin = await Instructor.findById(adminId).populate("students");
-    if (!admin || admin.role !== "Admin") {
-      throw new Error("Admin não encontrado ou não autorizado.");
+    // Buscar o instrutor pelo ID
+    const instructor = await Instructor.findById(instructorId).populate(
+      "students"
+    );
+    if (!instructor) {
+      throw new Error("Instrutor não encontrado ou não autorizado.");
     }
-    const studentIndex = admin.students.findIndex(
+
+    // Verificar se o aluno está associado ao instrutor
+    const studentIndex = instructor.students.findIndex(
       (student) => student._id.toString() === studentId.toString()
     );
     if (studentIndex === -1) {
-      throw new Error("Este estudante não está associado a este administrador.");
+      throw new Error("Este estudante não está associado a este instrutor.");
     }
-    admin.students.splice(studentIndex, 1);
-    await admin.save();
 
+    // Remover aluno da lista de alunos do instrutor
+    instructor.students.splice(studentIndex, 1);
+    await instructor.save();
+
+    // Atualizar o campo 'instructor' do aluno para null
     const student = await Student.findById(studentId);
     if (!student) throw new Error("Aluno não encontrado.");
     student.instructor = null;
@@ -87,7 +109,8 @@ async function removeStudentFromInstructor(adminId, studentId) {
 
     return "Estudante removido com sucesso.";
   } catch (error) {
-    throw error;
+    console.error("Erro ao remover estudante:", error.message);
+    throw new Error("Erro ao remover estudante: " + error.message);
   }
 }
 
@@ -107,7 +130,9 @@ async function getStudentsByInstructor(adminId) {
 // Obter estudantes por email do instrutor
 async function getStudentsByInstructorEmail(adminEmail) {
   try {
-    const admin = await Instructor.findOne({ email: adminEmail }).populate("students");
+    const admin = await Instructor.findOne({ email: adminEmail }).populate(
+      "students"
+    );
     if (!admin || admin.role !== "Admin") {
       throw new Error("Admin não encontrado ou não autorizado.");
     }
@@ -141,11 +166,16 @@ async function getInstructorDetailsWithStudents(adminId) {
 // Obter instrutor pelo ID do aluno
 async function getInstructorByStudentId(studentId) {
   try {
-    const student = await Student.findById(studentId).populate("instructor", "name email");
+    const student = await Student.findById(studentId).populate(
+      "instructor",
+      "name email"
+    );
     if (!student) throw new Error("Aluno não encontrado.");
     return student.instructor;
   } catch (error) {
-    throw new Error("Erro ao obter instrutor pelo ID do aluno: " + error.message);
+    throw new Error(
+      "Erro ao obter instrutor pelo ID do aluno: " + error.message
+    );
   }
 }
 
@@ -155,11 +185,13 @@ async function removeAllStudentsFromInstructor(adminId) {
     const admin = await Instructor.findById(adminId).populate("students");
     if (!admin) throw new Error("Instrutor não encontrado.");
 
-    await Promise.all(admin.students.map(async (student) => {
-      const s = await Student.findById(student._id);
-      s.instructor = null;
-      return s.save();
-    }));
+    await Promise.all(
+      admin.students.map(async (student) => {
+        const s = await Student.findById(student._id);
+        s.instructor = null;
+        return s.save();
+      })
+    );
 
     admin.students = [];
     await admin.save();

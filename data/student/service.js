@@ -1,7 +1,7 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const qrCode = require("qrcode");
-const { Student } = require("../../models/student"); // Certifique-se de que o caminho esteja correto
+const { Student } = require("../../models/user"); // Certifique-se de que o caminho esteja correto
 const config = require("../../config");
 
 function StudentService() {
@@ -185,4 +185,4 @@ function StudentService() {
   return service;
 }
 
-module.exports = StudentService;
+module.exports = StudentService();

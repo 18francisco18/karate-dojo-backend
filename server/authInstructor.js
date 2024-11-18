@@ -2,7 +2,7 @@ const express = require("express");
 const cookieParser = require("cookie-parser");
 const bodyParser = require("body-parser");
 const VerifyToken = require("../middleware/token");
-const InstructorService = require("../data/instructor/service"); // Ajuste o caminho conforme necessário
+const InstructorService = require("../data/instructor/service");
 
 const AuthInstructorRouter = () => {
   const router = express.Router();
@@ -12,7 +12,7 @@ const AuthInstructorRouter = () => {
   router.use(bodyParser.json({ limit: "100mb" }));
   router.use(bodyParser.urlencoded({ limit: "100mb", extended: true }));
 
-  // Rota para criar um novo instrutor
+  // Rota para criar um novo instrutor (Admin apenas)
   router.post("/register", async (req, res) => {
     try {
       const newInstructor = await InstructorService.createInstructor(req.body);
@@ -49,8 +49,8 @@ const AuthInstructorRouter = () => {
     }
   });
 
-  // Rota para buscar todos os instrutores (rota protegida)
-  router.get("/instructors", VerifyToken, async (req, res) => {
+  // Rota para buscar todos os instrutores (Admin apenas)
+  router.get("/instructors", VerifyToken("Admin"), async (req, res) => {
     try {
       const instructors = await InstructorService.findAllInstructors();
       res.status(200).json(instructors);
@@ -59,8 +59,8 @@ const AuthInstructorRouter = () => {
     }
   });
 
-  // Rota para buscar um instrutor pelo ID (rota protegida)
-  router.get("/instructor/:id", VerifyToken, async (req, res) => {
+  // Rota para buscar um instrutor pelo ID (Admin apenas)
+  router.get("/instructor/:id", VerifyToken("Admin"), async (req, res) => {
     try {
       const instructor = await InstructorService.findInstructorById(
         req.params.id
@@ -74,8 +74,8 @@ const AuthInstructorRouter = () => {
     }
   });
 
-  // Rota para atualizar informações de um instrutor (rota protegida)
-  router.put("/instructor/:id", VerifyToken, async (req, res) => {
+  // Rota para atualizar informações de um instrutor (Admin apenas)
+  router.put("/instructor/:id", VerifyToken("Admin"), async (req, res) => {
     try {
       const updatedInstructor = await InstructorService.updateInstructor(
         req.params.id,
@@ -90,8 +90,8 @@ const AuthInstructorRouter = () => {
     }
   });
 
-  // Rota para remover um instrutor (rota protegida)
-  router.delete("/instructor/:id", VerifyToken, async (req, res) => {
+  // Rota para remover um instrutor (Admin apenas)
+  router.delete("/instructor/:id", VerifyToken("Admin"), async (req, res) => {
     try {
       const message = await InstructorService.removeInstructorById(
         req.params.id
@@ -99,36 +99,6 @@ const AuthInstructorRouter = () => {
       res.status(200).json({ message });
     } catch (error) {
       res.status(500).json({ error: error.message });
-    }
-  });
-
-  // Rota para gerar QR Code com credenciais do instrutor (rota protegida)
-  router.get("/instructor/:id/qrcode", VerifyToken, async (req, res) => {
-    try {
-      const instructor = await InstructorService.findInstructorById(
-        req.params.id
-      );
-      if (!instructor) {
-        return res.status(404).json({ error: "Instrutor não encontrado" });
-      }
-      const qrCodeUrl = await InstructorService.generateQRCodeWithCredentials(
-        instructor
-      );
-      res.status(200).json({ qrCode: qrCodeUrl });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  // Rota para verificar o token JWT
-  router.get("/verify-token", VerifyToken, async (req, res) => {
-    try {
-      const decoded = await InstructorService.verifyToken(
-        req.headers["x-access-token"]
-      );
-      res.status(200).json({ valid: true, decoded });
-    } catch (error) {
-      res.status(401).json({ error: "Token inválido ou expirado" });
     }
   });
 

@@ -9,46 +9,51 @@ const GraduationRouter = () => {
   router.use(bodyParser.json({ limit: "100mb" }));
   router.use(bodyParser.urlencoded({ limit: "100mb", extended: true }));
 
-  // 1. Rota para criar graduação
-  router.post("/create", async (req, res) => {
-    try {
-      const { user, level, instructorId, location, date } = req.body; // Desestruturar os parâmetros do corpo da requisição
-
-      const graduation = await GraduationController.createGraduation(
-        user,
-        level,
-        instructorId,
-        location,
-        date
-      );
-
-      res.status(201).json(graduation);
-    } catch (error) {
-      res.status(500).json({ message: error.message });
+  // 1. Rota para criar graduação (apenas Admin)
+  // Endpoint para o instrutor criar uma nova graduação
+  router.post(
+    "/create",
+    verifyTokenMiddleware("Admin"),
+    async (req, res) => {
+      try {
+        const { level, instructorId, location, date } = req.body;
+        const graduation = await GraduationController.createGraduation(
+          level,
+          instructorId,
+          location,
+          date
+        );
+        res.status(201).json(graduation);
+      } catch (error) {
+        res.status(500).json({ message: error.message });
+      }
     }
-  });
+  );
 
-  // Rota para avaliar graduação
-  router.patch("/evaluate/:id", async (req, res) => {
-    try {
-      const { score, comments, instructorId } = req.body; // Inclui o instructorId
-      const { id } = req.params;
-
-      const result = await GraduationController.evaluateGraduation(
-        id,
-        score,
-        comments,
-        instructorId // Passa o instructorId
-      );
-      res.status(200).json(result);
-    } catch (error) {
-      console.log("Erro ao avaliar graduação:", error.message);
-      res.status(500).json({ message: error.message });
+  // 2. Rota para avaliar graduação (apenas Admin)
+  router.patch(
+    "/evaluate/:id",
+    verifyTokenMiddleware("Admin"),
+    async (req, res) => {
+      try {
+        const { score, comments, instructorId } = req.body;
+        const { id } = req.params;
+        const result = await GraduationController.evaluateGraduation(
+          id,
+          score,
+          comments,
+          instructorId
+        );
+        res.status(200).json(result);
+      } catch (error) {
+        console.log("Erro ao avaliar graduação:", error.message);
+        res.status(500).json({ message: error.message });
+      }
     }
-  });
+  );
 
-  // 3. Rota para obter todas as graduações de um usuário
-  router.get("/user/:userId", async (req, res) => {
+  // 3. Rota para obter todas as graduações de um usuário (rota protegida)
+  router.get("/user/:userId", verifyTokenMiddleware(), async (req, res) => {
     try {
       const graduations = await GraduationController.getUserGraduations(
         req.params.userId
@@ -59,8 +64,8 @@ const GraduationRouter = () => {
     }
   });
 
-  // 4. Rota para obter uma graduação por ID
-  router.get("/:id", async (req, res) => {
+  // 4. Rota para obter uma graduação por ID (rota protegida)
+  router.get("/:id", verifyTokenMiddleware(), async (req, res) => {
     try {
       const graduation = await GraduationController.getGraduationById(
         req.params.id
@@ -71,28 +76,38 @@ const GraduationRouter = () => {
     }
   });
 
-  // 5. Rota para atualizar graduação
-  router.put("/update/:id", async (req, res) => {
-    try {
-      const updatedGraduation = await GraduationController.updateGraduation(
-        req.params.id,
-        req.body
-      );
-      res.status(200).json(updatedGraduation);
-    } catch (error) {
-      res.status(500).json({ message: error.message });
+  // 5. Rota para atualizar graduação (apenas Admin)
+  router.put(
+    "/update/:id",
+    verifyTokenMiddleware("Admin"),
+    async (req, res) => {
+      try {
+        const updatedGraduation = await GraduationController.updateGraduation(
+          req.params.id,
+          req.body
+        );
+        res.status(200).json(updatedGraduation);
+      } catch (error) {
+        res.status(500).json({ message: error.message });
+      }
     }
-  });
+  );
 
-  // 6. Rota para deletar graduação
-  router.delete("/delete/:id", async (req, res) => {
-    try {
-      const result = await GraduationController.deleteGraduation(req.params.id);
-      res.status(200).json(result);
-    } catch (error) {
-      res.status(500).json({ message: error.message });
+  // 6. Rota para deletar graduação (apenas Admin)
+  router.delete(
+    "/delete/:id",
+    verifyTokenMiddleware("Admin"),
+    async (req, res) => {
+      try {
+        const result = await GraduationController.deleteGraduation(
+          req.params.id
+        );
+        res.status(200).json(result);
+      } catch (error) {
+        res.status(500).json({ message: error.message });
+      }
     }
-  });
+  );
 
   return router;
 };

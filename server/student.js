@@ -3,6 +3,7 @@ const bodyParser = require("body-parser");
 const express = require("express");
 const VerifyToken = require("../middleware/token");
 const StudentController = require("../data/student/controller");
+const GraduationController = require("../data/graduation/controller");
 
 const StudentRouter = () => {
   let router = express.Router();
@@ -23,8 +24,9 @@ const StudentRouter = () => {
   });
 
   // Rota para o aluno escolher um plano
-  router.post("/choose-plan", async (req, res) => {
-    const { studentId, planType } = req.body;
+  router.post("/choose-plan", VerifyToken(), async (req, res) => {
+    const { planType } = req.body;
+    const studentId = req.userId; // O ID do aluno vem do token verificado no middleware
 
     // Verifica se os parâmetros foram passados corretamente
     if (!studentId || !planType) {
@@ -36,6 +38,72 @@ const StudentRouter = () => {
       const result = await StudentController.choosePlan(studentId, planType);
       res.status(200).json(result);
     } catch (error) {
+      console.error("Erro ao escolher plano:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Rota para o aluno escolher um instrutor
+  router.post(
+    "/choose-instructor",
+    VerifyToken(), // Middleware para verificar o token
+    async (req, res) => {
+      const { instructorId } = req.body; // O ID do instrutor é passado no corpo da requisição
+      const studentId = req.userId; // O ID do aluno vem do token verificado no middleware
+
+      // Verificar se o studentId foi extraído corretamente do token
+      if (!studentId) {
+        return res
+          .status(400)
+          .json({ error: "ID do aluno não encontrado no token" });
+      }
+
+      // Verificar se o instructorId foi passado na requisição
+      if (!instructorId) {
+        return res
+          .status(400)
+          .json({ error: "ID do instrutor não encontrado" });
+      }
+
+      try {
+        // Aqui você deve passar o instructorId e o studentId no método correto
+        const result = await StudentController.chooseInstructor(
+          studentId, // O ID do aluno
+          instructorId // O ID do instrutor
+        );
+        res.status(200).json({ message: result });
+      } catch (error) {
+        console.error("Erro ao associar aluno ao instrutor:", error);
+        res.status(500).json({ error: error.message });
+      }
+    }
+  );
+
+  router.post("/enroll-graduation", VerifyToken(), async (req, res) => {
+    const { graduationId } = req.body;
+    const studentId = req.userId; // O ID do aluno vem do token verificado no middleware
+
+    // Verificar se o studentId foi extraído corretamente do token
+    if (!studentId) {
+      return res
+        .status(400)
+        .json({ error: "ID do aluno não encontrado no token" });
+    }
+
+    // Verificar se o graduationId foi passado na requisição
+    if (!graduationId) {
+      return res.status(400).json({ error: "ID da graduação não encontrado" });
+    }
+
+    try {
+      // Chama o método enrollInGraduation do StudentController
+      const result = await StudentController.enrollInGraduation(
+        studentId,
+        graduationId
+      );
+      res.status(200).json(result);
+    } catch (error) {
+      console.error("Erro ao inscrever aluno na graduação:", error);
       res.status(500).json({ error: error.message });
     }
   });
