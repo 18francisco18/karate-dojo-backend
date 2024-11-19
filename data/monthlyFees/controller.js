@@ -2,6 +2,7 @@
 const MonthlyFee = require("../../models/monthlyFee");
 const Student = require("../../models/user").Student;
 const sendEmail = require("../../utils/sendEmail"); // Assumindo que existe um módulo para enviar e-mails
+const { generateReceipt } = require("../../pdfs/pdfService"); // Assumindo que existe um módulo para gerar recibos
 
 const MonthlyFeeController = {
   createMonthlyFee,
@@ -82,7 +83,7 @@ async function updateMonthlyFeeStatus() {
 async function markMonthlyFeeAsPaid(monthlyFeeId) {
   try {
     // Encontra a mensalidade pelo ID
-    const monthlyFee = await MonthlyFee.findById(monthlyFeeId);
+    const monthlyFee = await MonthlyFee.findById(monthlyFeeId).populate("user");
     if (!monthlyFee) {
       throw new Error("Mensalidade não encontrada");
     }
@@ -95,6 +96,10 @@ async function markMonthlyFeeAsPaid(monthlyFeeId) {
     // Atualiza o status da mensalidade para "Pago"
     monthlyFee.status = "Pago";
     await monthlyFee.save();
+
+    // Gera o recibo de pagamento
+    const receiptPath = await generateReceipt(monthlyFee);
+    console.log(`Recibo gerado em: ${receiptPath}`);
 
     // Verificar se todas as mensalidades estão pagas para remover a suspensão
     const unpaidFees = await MonthlyFee.find({

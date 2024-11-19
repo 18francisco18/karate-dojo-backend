@@ -99,6 +99,108 @@ async function generateDiploma(graduation, instructorName) {
   });
 }
 
+async function generateReceipt(monthlyFee, instructorName) {
+  return new Promise((resolve, reject) => {
+    if (!monthlyFee || !monthlyFee.user) {
+      return reject(new Error("Dados da mensalidade estão incompletos"));
+    }
+
+    const doc = new PDFDocument();
+    const dirPath = path.join(__dirname, "../faturas");
+    const filePath = path.join(dirPath, `${monthlyFee._id}.pdf`);
+
+    if (!fs.existsSync(dirPath)) {
+      fs.mkdirSync(dirPath, { recursive: true });
+    }
+
+    const writeStream = fs.createWriteStream(filePath);
+    doc.pipe(writeStream);
+
+    // Adiciona conteúdo ao PDF
+    doc.image(path.join(__dirname, "../assets/logo-ipp.png"), {
+      fit: [100, 100],
+      align: "center",
+      valign: "top",
+    });
+
+    doc
+      .fontSize(30)
+      .font("Helvetica-Bold")
+      .text("Cobra Kai Dojo", { align: "center", underline: true });
+
+    doc
+      .moveDown()
+      .fontSize(25)
+      .font("Helvetica-Bold")
+      .text(`Recibo de Pagamento`, { align: "center" });
+
+    // Use monthlyFee.user.name instead of monthlyFee.user
+    const studentName = monthlyFee.user.name || monthlyFee.user._id.toString();
+
+    doc
+      .moveDown()
+      .fontSize(18)
+      .font("Helvetica")
+      .text(`Certificamos que o aluno ${studentName.toUpperCase()}`, {
+        align: "center",
+      })
+      .moveDown()
+      .text(
+        `Efetuou o pagamento da mensalidade no valor de R$ ${monthlyFee.amount}`,
+        {
+          align: "center",
+        }
+      )
+      .moveDown()
+      .text(`Data de Vencimento: ${monthlyFee.dueDate.toLocaleDateString()}`, {
+        align: "center",
+      })
+      .moveDown()
+      .text(`Status: ${monthlyFee.status}`, { align: "center" })
+      .moveDown()
+      .text(`Método de Pagamento: ${monthlyFee.method}`, { align: "center" });
+
+    if (monthlyFee.transactionId) {
+      doc.moveDown().text(`ID da Transação: ${monthlyFee.transactionId}`, {
+        align: "center",
+      });
+    }
+
+    if (monthlyFee.notes) {
+      doc.moveDown().text(`Notas: ${monthlyFee.notes}`, { align: "center" });
+    }
+
+    // Espaço adicional antes da assinatura
+    doc.moveDown(3);
+
+    // Adiciona a imagem de assinatura fictícia
+    const signaturePath = path.join(__dirname, "../assets/masterSignature.png");
+    const signatureWidth = 150; // Largura da imagem de assinatura
+    const pageWidth = doc.page.width; // Largura da página
+    const signatureX = (pageWidth - signatureWidth) / 2; // Centraliza a imagem
+    const signatureY = doc.y; // Usa a posição atual da linha
+
+    doc.image(signaturePath, signatureX, signatureY, {
+      width: signatureWidth,
+      height: 50,
+    });
+
+    // Adiciona a linha de assinatura
+    doc
+      .moveDown(2)
+      .fontSize(16)
+      .text("_________________________", { align: "center" })
+      .text(`O Mestre: ${instructorName}`, { align: "center" })
+      .text("Cobra Kai Dojo", { align: "center" });
+
+    doc.end();
+
+    writeStream.on("finish", () => resolve(filePath));
+    writeStream.on("error", (error) => reject(error));
+  });
+}
+
 module.exports = {
   generateDiploma,
+  generateReceipt,
 };
