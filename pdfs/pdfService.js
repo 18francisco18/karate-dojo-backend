@@ -146,7 +146,7 @@ async function generateReceipt(monthlyFee, instructorName) {
       })
       .moveDown()
       .text(
-        `Efetuou o pagamento da mensalidade no valor de R$ ${monthlyFee.amount}`,
+        `Efetuou o pagamento da mensalidade no valor de ${monthlyFee.amount}€`,
         {
           align: "center",
         }

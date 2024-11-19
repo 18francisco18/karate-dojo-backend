@@ -138,9 +138,9 @@ async function notifyOverdueMonthlyFee(monthlyFee) {
     const subject = "Aviso de Mensalidade Atrasada";
     const message = `Olá ${student.name},
 
-Sua mensalidade no valor de R$${
+Sua mensalidade no valor de ${
       monthlyFee.amount
-    } está atrasada desde ${monthlyFee.dueDate.toLocaleDateString()}. Por favor, regularize o pagamento o mais rápido possível para evitar problemas com sua inscrição.
+    }€ está atrasada desde ${monthlyFee.dueDate.toLocaleDateString()}. Por favor, regularize o pagamento o mais rápido possível para evitar problemas com sua inscrição.
 
 Obrigado,
 Equipe da Academia`;
