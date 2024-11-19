@@ -10,15 +10,15 @@ const GraduationRouter = () => {
   router.use(bodyParser.urlencoded({ limit: "100mb", extended: true }));
 
   // 1. Rota para criar graduação (apenas Admin)
-  // Endpoint para o instrutor criar uma nova graduação
   router.post("/create", verifyTokenMiddleware("Admin"), async (req, res) => {
     try {
-      const { level, instructorId, location, date } = req.body;
+      const { level, instructorId, location, date, availableSlots } = req.body;
       const graduation = await GraduationController.createGraduation(
         level,
         instructorId,
         location,
-        date
+        date,
+        availableSlots
       );
       res.status(201).json(graduation);
     } catch (error) {
@@ -59,11 +59,10 @@ const GraduationRouter = () => {
   );
 
   // 3. Rota para obter todas as graduações de um usuário (rota protegida)
-  router.get("/user/:userId", verifyTokenMiddleware(), async (req, res) => {
+  router.get("/user/:userId?", verifyTokenMiddleware(), async (req, res) => {
+    const userId = req.params.userId || req.body.userId;
     try {
-      const graduations = await GraduationController.getUserGraduations(
-        req.params.userId
-      );
+      const graduations = await GraduationController.getUserGraduations(userId);
       res.status(200).json(graduations);
     } catch (error) {
       res.status(500).json({ message: error.message });
@@ -88,9 +87,12 @@ const GraduationRouter = () => {
     verifyTokenMiddleware("Admin"),
     async (req, res) => {
       try {
+        const { score, comment, certificateUrl } = req.body;
         const updatedGraduation = await GraduationController.updateGraduation(
           req.params.id,
-          req.body
+          score,
+          comment,
+          certificateUrl
         );
         res.status(200).json(updatedGraduation);
       } catch (error) {

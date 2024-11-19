@@ -43,7 +43,15 @@ const AuthInstructorRouter = () => {
       }
 
       const token = InstructorService.createToken(instructor);
-      res.status(200).json({ auth: true, token });
+      // Adiciona o token aos cookies e envia a resposta
+      res
+        .cookie("authToken", token, {
+          httpOnly: true, // Torna o cookie inacessível ao JavaScript no navegador (por segurança)
+          secure: process.env.NODE_ENV === "production", // Define o cookie como seguro somente em produção
+          maxAge: 24 * 60 * 60 * 1000, // Expira em 1 dia
+        })
+        .status(200)
+        .json({ auth: true, message: "Login bem-sucedido" });
     } catch (error) {
       res.status(500).json({ error: error.message });
     }

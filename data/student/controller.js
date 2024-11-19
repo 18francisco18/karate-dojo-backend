@@ -43,12 +43,12 @@ async function enrollInGraduation(studentId, graduationId) {
     }
 
     // Verifica se o aluno já está inscrito nesta graduação
-    if (graduation.student && graduation.student.toString() === studentId) {
+    if (graduation.enrolledStudents.includes(studentId)) {
       throw new Error("Aluno já está inscrito nesta graduação.");
     }
 
     // Associa o aluno à graduação
-    graduation.student = studentId;
+    graduation.enrolledStudents.push(studentId);
     await graduation.save();
 
     // Garante que student.graduation seja um array

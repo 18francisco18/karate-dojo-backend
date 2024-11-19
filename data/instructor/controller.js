@@ -143,10 +143,28 @@ async function getStudentsByInstructorEmail(adminEmail) {
 }
 
 // Listar todos os alunos
-async function getAllStudents() {
+// Listar todos os alunos com Paginação
+async function getAllStudents(page = 1, limit = 10) {
   try {
-    const students = await Student.find().populate("instructor", "name email");
-    return students;
+    const skip = (page - 1) * limit;
+
+    const students = await Student.find()
+      .populate("instructor", "name email")
+      .skip(skip)
+      .limit(limit);
+
+    if (students.length === 0) {
+      throw new Error("Nenhum estudante encontrado.");
+    }
+
+    const totalStudents = await Student.countDocuments();
+
+    return {
+      currentPage: page,
+      totalPages: Math.ceil(totalStudents / limit),
+      totalItems: totalStudents,
+      students,
+    };
   } catch (error) {
     throw new Error("Erro ao obter todos os estudantes: " + error.message);
   }

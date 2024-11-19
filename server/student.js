@@ -26,11 +26,12 @@ const StudentRouter = () => {
 
   // Rota para o aluno escolher um plano
   router.post(
-    "/choose-plan",
+    "/choose-plan/:planType?",
     VerifyToken(),
     checkSuspended,
     async (req, res) => {
-      const { planType } = req.body;
+      const { planType: planTypeParam } = req.params;
+      const planType = planTypeParam || req.body.planType;
       const studentId = req.userId;
 
       if (!studentId || !planType) {
@@ -71,11 +72,12 @@ const StudentRouter = () => {
 
   // Rota para o aluno escolher um instrutor
   router.post(
-    "/choose-instructor",
+    "/choose-instructor/:instructorId?",
     VerifyToken(),
     checkSuspended,
     async (req, res) => {
-      const { instructorId } = req.body;
+      const { instructorId: instructorIdParam } = req.params;
+      const instructorId = instructorIdParam || req.body.instructorId;
       const studentId = req.userId;
 
       if (!studentId) {
@@ -103,13 +105,54 @@ const StudentRouter = () => {
     }
   );
 
-  // Rota para inscrição em graduação
-  router.post(
-    "/enroll-graduation",
+  router.get(
+    "/graduations",
     VerifyToken(),
     checkSuspended,
     async (req, res) => {
-      const { graduationId } = req.body;
+      try {
+        const {
+          beltColor,
+          date,
+          availableSlots,
+          sortField,
+          sortOrder,
+          page,
+          limit,
+        } = req.query;
+        const filters = {
+          beltColor,
+          date,
+          availableSlots,
+        };
+        const sort = {
+          field: sortField,
+          order: sortOrder,
+        };
+        const pageNumber = parseInt(page) || 1;
+        const limitNumber = parseInt(limit) || 10;
+
+        const result = await GraduationController.getAllGraduations(
+          filters,
+          sort,
+          pageNumber,
+          limitNumber
+        );
+        res.status(200).json(result);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    }
+  );
+
+  // Rota para inscrição em graduação
+  router.post(
+    "/enroll-graduation/:graduationId?",
+    VerifyToken(),
+    checkSuspended,
+    async (req, res) => {
+      const { graduationId: graduationIdParam } = req.params;
+      const graduationId = graduationIdParam || req.body.graduationId;
       const studentId = req.userId;
 
       if (!studentId) {
@@ -125,13 +168,70 @@ const StudentRouter = () => {
       }
 
       try {
+        const graduation = await GraduationController.getGraduationById(
+          graduationId
+        );
+        if (graduation.availableSlots <= 0) {
+          return res
+            .status(400)
+            .json({ error: "Não há vagas disponíveis para esta graduação." });
+        }
+
         const result = await StudentController.enrollInGraduation(
           studentId,
           graduationId
         );
+
+        // Atualiza o número de vagas disponíveis
+        graduation.availableSlots -= 1;
+        await graduation.save();
+
         res.status(200).json(result);
       } catch (error) {
         console.error("Erro ao inscrever aluno na graduação:", error);
+        res.status(500).json({ error: error.message });
+      }
+    }
+  );
+
+  router.post(
+    "/graduations/:id/enroll",
+    VerifyToken(),
+    checkSuspended,
+    async (req, res) => {
+      try {
+        const { id } = req.params;
+        const studentId = req.userId;
+
+        if (!studentId) {
+          return res
+            .status(400)
+            .json({ error: "ID do aluno não encontrado no token." });
+        }
+
+        const graduation = await GraduationController.getGraduationById(id);
+        if (!graduation) {
+          return res.status(404).json({ error: "Graduação não encontrada." });
+        }
+
+        if (graduation.availableSlots <= 0) {
+          return res
+            .status(400)
+            .json({ error: "Não há vagas disponíveis para esta graduação." });
+        }
+
+        const result = await StudentController.enrollInGraduation(
+          studentId,
+          id
+        );
+
+        // Atualiza o número de vagas disponíveis
+        graduation.availableSlots -= 1;
+        await graduation.save();
+
+        res.status(200).json(result);
+      } catch (error) {
+        console.error("Erro ao inscrever aluno na graduação:", error.message);
         res.status(500).json({ error: error.message });
       }
     }

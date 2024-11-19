@@ -147,7 +147,7 @@ function StudentService() {
       config.secret,
       { expiresIn: config.expiresPassword }
     );
-    return { auth: true, token };
+    return token; // Retorna apenas o token
   }
 
   // Verificar um token JWT

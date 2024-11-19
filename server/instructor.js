@@ -4,6 +4,7 @@ const bodyParser = require("body-parser");
 const VerifyToken = require("../middleware/token");
 const InstructorController = require("../data/instructor/controller");
 const MonthlyFeeController = require("../data/monthlyFees/controller");
+const GraduationController = require("../data/graduation/controller");
 
 const InstructorRouter = () => {
   const router = express.Router();
@@ -28,52 +29,61 @@ const InstructorRouter = () => {
     }
   });
 
-  // Rota para adicionar um aluno a um instrutor (nao esta a ser usada pois o aluno é adicionado ao instrutor na rota /)
-  router.post("/instructor/:id/add-student", VerifyToken, async (req, res) => {
-    const { id } = req.params;
-    const { studentId } = req.body;
+  // Rota para adicionar um aluno a um instrutor
+  router.post(
+    "/instructor/:id/add-student/:studentId?",
+    VerifyToken,
+    async (req, res) => {
+      const { id, studentId: studentIdParam } = req.params;
+      const studentId = studentIdParam || req.body.studentId;
 
-    if (!studentId) {
-      return res.status(400).json({ error: "ID do estudante é necessário" });
+      if (!studentId) {
+        return res.status(400).json({ error: "ID do estudante é necessário" });
+      }
+
+      try {
+        const result = await InstructorController.addStudentToInstructor(
+          id,
+          studentId
+        );
+        res.status(200).json({ message: result });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
     }
+  );
 
-    try {
-      const result = await InstructorController.addStudentToInstructor(
-        id,
-        studentId
-      );
-      res.status(200).json({ message: result });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
+  // Rota para remover um aluno de um instrutor
+  router.post(
+    "/instructor/remove-student/:studentId?",
+    VerifyToken(),
+    async (req, res) => {
+      const studentId = req.params.studentId || req.body.studentId; // ID do estudante obtido da URL ou do corpo da requisição
+      const instructorId = req.userId; // ID do instrutor obtido do token
+
+      // Verificar se o ID do instrutor está presente
+      if (!instructorId) {
+        return res.status(403).json({
+          error: "Acesso negado. Apenas instrutores podem remover alunos.",
+        });
+      }
+
+      if (!studentId) {
+        return res.status(400).json({ error: "ID do estudante é necessário" });
+      }
+
+      try {
+        const result = await InstructorController.removeStudentFromInstructor(
+          instructorId,
+          studentId
+        );
+        return res.status(200).json({ message: result });
+      } catch (error) {
+        console.error("Erro na rota /remove-student:", error.message);
+        return res.status(500).json({ error: error.message });
+      }
     }
-  });
-
-  router.post("/instructor/remove-student", VerifyToken(), async (req, res) => {
-    const { studentId } = req.body;
-    const instructorId = req.userId; // ID do instrutor obtido do token
-
-    // Verificar se o ID do instrutor está presente
-    if (!instructorId) {
-      return res.status(403).json({
-        error: "Acesso negado. Apenas instrutores podem remover alunos.",
-      });
-    }
-
-    if (!studentId) {
-      return res.status(400).json({ error: "ID do estudante é necessário" });
-    }
-
-    try {
-      const result = await InstructorController.removeStudentFromInstructor(
-        instructorId,
-        studentId
-      );
-      return res.status(200).json({ message: result });
-    } catch (error) {
-      console.error("Erro na rota /remove-student:", error.message);
-      return res.status(500).json({ error: error.message });
-    }
-  });
+  );
 
   // Rota para obter todos os estudantes associados a um instrutor pelo ID
   router.get("/instructor/:id/students", VerifyToken, async (req, res) => {
@@ -144,26 +154,63 @@ const InstructorRouter = () => {
     }
   });
 
-  router.post("/unsuspend-student", VerifyToken(), async (req, res) => {
-    const { studentId } = req.body;
+  // Rota para remover suspensão de um aluno
+  router.post(
+    "/unsuspend-student/:studentId?",
+    VerifyToken(),
+    async (req, res) => {
+      const studentId = req.params.studentId || req.body.studentId;
 
-    if (!studentId) {
-      return res.status(400).json({ error: "ID do aluno é necessário" });
-    }
+      if (!studentId) {
+        return res.status(400).json({ error: "ID do aluno é necessário" });
+      }
 
-    try {
-      // Chama a função para retirar a suspensão do aluno
-      const unsuspendedStudent =
-        await MonthlyFeeController.manuallyUnsuspendStudent(studentId);
-      res.status(200).json({
-        message: "Suspensão do aluno removida com sucesso.",
-        student: unsuspendedStudent,
-      });
-    } catch (error) {
-      console.error("Erro ao remover suspensão do aluno:", error.message);
-      res.status(500).json({ error: error.message });
+      try {
+        // Chama a função para retirar a suspensão do aluno
+        const unsuspendedStudent =
+          await MonthlyFeeController.manuallyUnsuspendStudent(studentId);
+        res.status(200).json({
+          message: "Suspensão do aluno removida com sucesso.",
+          student: unsuspendedStudent,
+        });
+      } catch (error) {
+        console.error("Erro ao remover suspensão do aluno:", error.message);
+        res.status(500).json({ error: error.message });
+      }
     }
-  });
+  );
+
+  // Rota para convidar um aluno para uma graduação
+  router.post(
+    "/graduations/:id/invite/:studentEmail?",
+    VerifyToken(),
+    async (req, res) => {
+      try {
+        const { id, studentEmail: emailParam } = req.params;
+        const studentEmail = emailParam || req.body.studentEmail;
+
+        if (!studentEmail) {
+          return res
+            .status(400)
+            .json({ error: "Email do aluno é obrigatório." });
+        }
+
+        const graduation = await GraduationController.getGraduationById(id);
+        if (!graduation) {
+          return res.status(404).json({ error: "Graduação não encontrada." });
+        }
+
+        const emailResult =
+          await GraduationController.sendGraduationInvitationEmail(
+            studentEmail,
+            graduation
+          );
+        res.status(200).json({ message: emailResult });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    }
+  );
 
   return router;
 };

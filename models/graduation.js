@@ -24,6 +24,8 @@ let graduationSchema = new Schema({
   location: { type: String },
   comments: { type: String },
   certificateUrl: { type: String },
+  availableSlots: { type: Number, required: true },
+  enrolledStudents: [{ type: Schema.Types.ObjectId, ref: "Student" }],
 });
 
 let Graduation = mongoose.model("Graduation", graduationSchema);
