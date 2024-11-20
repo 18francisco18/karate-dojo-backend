@@ -3,6 +3,7 @@ const MonthlyFee = require("../../models/monthlyFee");
 const Student = require("../../models/user").Student;
 const sendEmail = require("../../utils/sendEmail"); // Assumindo que existe um módulo para enviar e-mails
 const { generateReceipt } = require("../../pdfs/pdfService"); // Assumindo que existe um módulo para gerar recibos
+const Instructor = require("../../models/user").Instructor;
 
 const MonthlyFeeController = {
   createMonthlyFee,
@@ -25,11 +26,11 @@ async function createMonthlyFee(studentId, price, dueDateOverride = null) {
 
     // Cria a nova mensalidade
     const newMonthlyFee = new MonthlyFee({
-      user: studentId,
+      student: studentId, // Alterado de user para student
       amount: price,
-      status: "Pendente", // O status inicial será Pendente
-      dueDate: dueDate, // Defina a data de vencimento
-      startDate: new Date(), // Data de início
+      status: "pending", // Alterado para o novo padrão de status
+      dueDate: dueDate,
+      startDate: new Date(),
     });
 
     // Salva a mensalidade no banco de dados
@@ -47,22 +48,22 @@ async function createMonthlyFee(studentId, price, dueDateOverride = null) {
 async function updateMonthlyFeeStatus() {
   try {
     const currentDate = new Date();
-    // Encontra todas as mensalidades com a data de vencimento passada e com status diferente de 'Pago'
+    // Encontra todas as mensalidades com a data de vencimento passada e com status diferente de 'paid'
     const overdueFees = await MonthlyFee.find({
       dueDate: { $lt: currentDate },
-      status: { $ne: "Pago" }, // Exclui as que já estão pagas
+      status: { $ne: "paid" },
     });
 
-    // Atualiza o status das mensalidades vencidas para 'Atrasado' e suspende o aluno automaticamente
+    // Atualiza o status das mensalidades vencidas para 'late' e suspende o aluno automaticamente
     for (let fee of overdueFees) {
-      fee.status = "Atrasado";
+      fee.status = "late";
       await fee.save();
 
       // Enviar um aviso por e-mail ao aluno
       await notifyOverdueMonthlyFee(fee);
 
       // Suspender o aluno automaticamente
-      const student = await Student.findById(fee.user);
+      const student = await Student.findById(fee.student);
       if (student && !student.suspended) {
         student.suspended = true;
         await student.save();
@@ -73,7 +74,7 @@ async function updateMonthlyFeeStatus() {
     }
 
     console.log(
-      `Status atualizado para "Atrasado" em ${overdueFees.length} mensalidades.`
+      `Status atualizado para "late" em ${overdueFees.length} mensalidades.`
     );
   } catch (error) {
     console.error("Erro ao atualizar mensalidades:", error.message);
@@ -81,54 +82,76 @@ async function updateMonthlyFeeStatus() {
 }
 
 // Função para marcar a mensalidade como paga
-async function markMonthlyFeeAsPaid(monthlyFeeId) {
+async function markMonthlyFeeAsPaid(monthlyFeeId, paymentMethod) {
   try {
-    // Encontra a mensalidade pelo ID
+    if (!paymentMethod) {
+      throw new Error("Método de pagamento é obrigatório");
+    }
+
+    // Encontra a mensalidade pelo ID e popula os dados do aluno e instrutor
     const monthlyFee = await MonthlyFee.findById(monthlyFeeId)
-      .populate("user")
+      .populate("student")
       .populate({
-        path: "user",
+        path: "student",
         populate: {
           path: "instructor",
-          select: "name"
+          select: "name email"
         }
       });
+
     if (!monthlyFee) {
       throw new Error("Mensalidade não encontrada");
     }
 
-    // Verifica se o status não é "Pago" antes de atualizar
-    if (monthlyFee.status === "Pago") {
+    // Verifica se o status não é "paid" antes de atualizar
+    if (monthlyFee.status === "paid") {
       throw new Error("Esta mensalidade já está paga");
     }
 
-    // Atualiza o status da mensalidade para "Pago"
-    monthlyFee.status = "Pago";
+    // Atualiza o status, método de pagamento e a data de pagamento
+    monthlyFee.status = "paid";
+    monthlyFee.paymentMethod = paymentMethod;
     monthlyFee.paymentDate = new Date();
     await monthlyFee.save();
 
-    // Gera o recibo de pagamento
-    const receiptPath = await generateReceipt(monthlyFee);
-    console.log(`Recibo gerado em: ${receiptPath}`);
+    // Se o aluno estiver suspenso e não tiver outras mensalidades atrasadas, remove a suspensão
+    const student = await Student.findById(monthlyFee.student);
+    if (student && student.suspended) {
+      const hasOverdueFees = await MonthlyFee.exists({
+        student: student._id,
+        status: "late",
+        _id: { $ne: monthlyFeeId }
+      });
 
-    // Verificar se todas as mensalidades estão pagas para remover a suspensão
-    const unpaidFees = await MonthlyFee.find({
-      user: monthlyFee.user,
-      status: { $ne: "Pago" },
-    });
-    if (unpaidFees.length === 0) {
-      const student = await Student.findById(monthlyFee.user);
-      if (student && student.suspended) {
+      if (!hasOverdueFees) {
         student.suspended = false;
         await student.save();
-        console.log(
-          `Suspensão do aluno com ID ${student._id} foi removida automaticamente.`
-        );
+        console.log(`Suspensão removida do aluno ${student._id}`);
       }
     }
 
-    console.log(`Mensalidade com ID ${monthlyFeeId} foi marcada como paga.`);
-    return monthlyFee;
+    // Gera o recibo de pagamento
+    let receiptPath;
+    try {
+      const instructorName = monthlyFee.student.instructor ? monthlyFee.student.instructor.name : "Instrutor Responsável";
+      receiptPath = await generateReceipt(
+        {
+          ...monthlyFee.toObject(),
+          user: monthlyFee.student // Adaptando para o formato esperado pelo generateReceipt
+        }, 
+        instructorName
+      );
+      console.log(`Recibo gerado em: ${receiptPath}`);
+    } catch (error) {
+      console.error("Erro ao gerar recibo:", error.message);
+      // Não interrompe o fluxo se houver erro na geração do recibo
+    }
+
+    return {
+      message: "Mensalidade marcada como paga com sucesso",
+      monthlyFee,
+      receiptPath
+    };
   } catch (error) {
     console.error("Erro ao marcar mensalidade como paga:", error.message);
     throw error;
@@ -138,57 +161,50 @@ async function markMonthlyFeeAsPaid(monthlyFeeId) {
 // Função para notificar o aluno sobre uma mensalidade atrasada
 async function notifyOverdueMonthlyFee(monthlyFee) {
   try {
-    // Busca os detalhes do aluno
-    const student = await Student.findById(monthlyFee.user);
-    if (!student) {
-      throw new Error("Aluno não encontrado");
+    const student = await Student.findById(monthlyFee.student);
+    if (!student || !student.email) {
+      throw new Error("E-mail do aluno não encontrado");
     }
 
-    // Conteúdo do e-mail
-    const subject = "Aviso de Mensalidade Atrasada";
-    const message = `Olá ${student.name},
+    const emailContent = {
+      to: student.email,
+      subject: "Aviso de Mensalidade Atrasada",
+      text: `Prezado(a) ${student.name},\n\nSua mensalidade com vencimento em ${monthlyFee.dueDate.toLocaleDateString()} está atrasada.\nValor: R$ ${monthlyFee.amount}\n\nPor favor, regularize o pagamento o mais breve possível para evitar a suspensão dos serviços.\n\nAtenciosamente,\nEquipe do Dojo`,
+    };
 
-Sua mensalidade no valor de ${
-      monthlyFee.amount
-    }€ está atrasada desde ${monthlyFee.dueDate.toLocaleDateString()}. Por favor, regularize o pagamento o mais rápido possível para evitar problemas com sua inscrição.
-
-Obrigado,
-Equipe da Academia`;
-
-    // Envia o e-mail
-    await sendEmail(student.email, subject, message);
+    await sendEmail(emailContent);
     console.log(`E-mail de aviso enviado para ${student.email}`);
   } catch (error) {
-    console.error(
-      "Erro ao enviar aviso de mensalidade atrasada:",
-      error.message
-    );
+    console.error("Erro ao enviar notificação:", error.message);
   }
 }
 
 // Função para retirar manualmente a suspensão do aluno
 async function manuallyUnsuspendStudent(studentId) {
   try {
-    // Busca os detalhes do aluno
     const student = await Student.findById(studentId);
     if (!student) {
       throw new Error("Aluno não encontrado");
     }
 
-    // Atualiza o status de suspensão do aluno
-    if (student.suspended) {
-      student.suspended = false;
-      await student.save();
-      console.log(
-        `Suspensão do aluno com ID ${studentId} foi removida manualmente.`
-      );
-    } else {
-      console.log(`Aluno com ID ${studentId} não está suspenso.`);
+    if (!student.suspended) {
+      throw new Error("O aluno não está suspenso");
     }
 
-    return student;
+    student.suspended = false;
+    await student.save();
+
+    return {
+      message: "Suspensão removida com sucesso",
+      student: {
+        id: student._id,
+        name: student.name,
+        email: student.email,
+        suspended: student.suspended,
+      },
+    };
   } catch (error) {
-    console.error("Erro ao remover suspensão do aluno:", error.message);
+    console.error("Erro ao remover suspensão:", error.message);
     throw error;
   }
 }
@@ -197,9 +213,8 @@ async function manuallyUnsuspendStudent(studentId) {
 async function getAllMonthlyFees() {
   try {
     const monthlyFees = await MonthlyFee.find()
-      .populate('user', 'name email') // Popula os dados do usuário
-      .sort({ dueDate: -1 }); // Ordena por data de vencimento, mais recente primeiro
-    
+      .populate("student", "name email")
+      .sort({ dueDate: -1 });
     return monthlyFees;
   } catch (error) {
     console.error("Erro ao buscar mensalidades:", error.message);

@@ -5,6 +5,7 @@ const VerifyToken = require("../middleware/token");
 const checkSuspended = require("../middleware/checkSuspended");
 const StudentController = require("../data/student/controller");
 const GraduationController = require("../data/graduation/controller");
+const MonthlyPlanController = require("../data/monthlyPlans/controller");
 
 const StudentRouter = () => {
   let router = express.Router();
@@ -14,61 +15,67 @@ const StudentRouter = () => {
   router.use(bodyParser.json({ limit: "100mb" }));
   router.use(bodyParser.urlencoded({ limit: "100mb", extended: true }));
 
-  // Rota para obter os planos disponíveis
-  router.get("/available-plans", async (req, res) => {
+  // Rotas de Planos Mensais
+  router.get("/available-plans", VerifyToken(), checkSuspended, async (req, res) => {
     try {
-      const plans = await StudentController.getAvailablePlans();
+      const plans = await MonthlyPlanController.getAll();
       res.json(plans);
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      res.status(400).json({ error: error.message });
     }
   });
 
-  // Rota para o aluno escolher um plano
-  router.post(
-    "/choose-plan/:planType?",
-    VerifyToken(),
-    checkSuspended,
-    async (req, res) => {
-      const { planType: planTypeParam } = req.params;
-      const planType = planTypeParam || req.body.planType;
-      const studentId = req.userId;
-
-      if (!studentId || !planType) {
-        return res.status(400).json({ error: "Parâmetros inválidos." });
-      }
-
-      try {
-        const result = await StudentController.choosePlan(studentId, planType);
-        res.status(200).json(result);
-      } catch (error) {
-        console.error("Erro ao escolher plano:", error);
-        res.status(500).json({ error: error.message });
-      }
+  router.get("/plans", async (req, res) => {
+    try {
+      const plans = await MonthlyPlanController.getAll();
+      res.json(plans);
+    } catch (error) {
+      res.status(400).json({ error: error.message });
     }
-  );
+  });
 
-  // Rota para cancelar o plano
-  router.delete(
-    "/cancel-plan",
-    VerifyToken(),
-    checkSuspended,
-    async (req, res) => {
-      const studentId = req.userId;
-
-      if (!studentId) {
-        return res.status(400).json({ error: "ID do aluno não encontrado." });
-      }
-
-      try {
-        const result = await StudentController.cancelPlan(studentId);
-        res.status(200).json(result);
-      } catch (error) {
-        console.error("Erro ao cancelar plano:", error);
-        res.status(500).json({ error: error.message });
-      }
+  router.get("/active-plan", VerifyToken(), checkSuspended, async (req, res) => {
+    try {
+      const plan = await MonthlyPlanController.getActivePlan(req.userId);
+      res.json(plan);
+    } catch (error) {
+      res.status(400).json({ error: error.message });
     }
-  );
+  });
+
+  router.post("/choose-plan/:planId", VerifyToken(), checkSuspended, async (req, res) => {
+    try {
+      const result = await MonthlyPlanController.associatePlanToStudent(req.params.planId, req.userId);
+      res.json(result);
+    } catch (error) {
+      // Se já tem plano ativo, retornar 409 Conflict
+      if (error.message.includes("já tem um plano ativo")) {
+        return res.status(409).json({ 
+          error: error.message,
+          message: "Para trocar de plano, primeiro cancele o plano atual usando DELETE /student/cancel-plan"
+        });
+      }
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  router.delete("/cancel-plan", VerifyToken(), checkSuspended, async (req, res) => {
+    try {
+      const result = await MonthlyPlanController.cancelActivePlan(req.userId);
+      res.json(result);
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  router.get("/my-plans", VerifyToken(), checkSuspended, async (req, res) => {
+    try {
+      const plans = await MonthlyPlanController.getStudentPlans(req.userId);
+      res.json(plans);
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  });
 
   // Rota para o aluno escolher um instrutor
   router.post(

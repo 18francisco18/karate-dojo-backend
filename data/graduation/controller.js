@@ -22,7 +22,8 @@ async function createGraduation(
   instructorId,
   location,
   date,
-  availableSlots
+  availableSlots,
+  scope = 'internal' // Valor padrão é internal
 ) {
   try {
     const graduationDate = date || new Date();
@@ -32,6 +33,7 @@ async function createGraduation(
       location,
       date: graduationDate,
       availableSlots,
+      scope
     });
 
     await graduation.save();
@@ -299,59 +301,104 @@ async function deleteGraduation(id) {
 // 7. Inscrever Estudante em uma Graduação
 async function enrollStudentInGraduation(graduationId, studentId) {
   try {
+    // Buscar a graduação
     const graduation = await Graduation.findById(graduationId);
     if (!graduation) {
       throw new Error("Graduação não encontrada");
     }
 
-    // Verificar se ainda há vagas disponíveis
-    if (graduation.enrolledStudents.length >= graduation.availableSlots) {
-      throw new Error("Não há mais vagas disponíveis para esta graduação");
-    }
-
-    const student = await Student.findById(studentId);
+    // Buscar o estudante com seu plano
+    const student = await Student.findById(studentId).populate('monthlyPlan');
     if (!student) {
       throw new Error("Estudante não encontrado");
     }
 
-    // Verificar se o estudante já está inscrito nesta graduação
+    // Verificar se o estudante tem plano ativo
+    if (!student.monthlyPlan) {
+      throw new Error("Estudante não possui plano ativo");
+    }
+
+    // Verificar se o estudante tem mensalidade em atraso
+    const lateFee = await MonthlyFee.findOne({
+      student: studentId,
+      status: "late"
+    });
+
+    if (lateFee) {
+      throw new Error("Estudante possui mensalidade em atraso");
+    }
+
+    // Verificar se o escopo da graduação está dentro do plano do estudante
+    const planScopes = student.monthlyPlan.graduationScopes;
+    const graduationScope = graduation.scope;
+
+    // Definir hierarquia de scopes
+    const scopeHierarchy = {
+      'internal': 1,
+      'regional': 2,
+      'national': 3
+    };
+
+    // Verificar se o plano permite o escopo da graduação
+    const maxPlanScope = Math.max(...planScopes.map(scope => scopeHierarchy[scope] || 0));
+    const requiredScope = scopeHierarchy[graduationScope] || 0;
+
+    if (maxPlanScope < requiredScope) {
+      throw new Error(
+        `Seu plano ${student.monthlyPlan.name} não permite participar de graduações do tipo ${graduationScope}. ` +
+        `Seu plano atual permite apenas: ${planScopes.join(', ')}`
+      );
+    }
+
+    // Verificar se há vagas disponíveis
+    if (graduation.enrolledStudents.length >= graduation.availableSlots) {
+      throw new Error("Não há vagas disponíveis para esta graduação");
+    }
+
+    // Verificar se o estudante já está inscrito
     if (graduation.enrolledStudents.includes(studentId)) {
       throw new Error("Estudante já está inscrito nesta graduação");
     }
 
-    // Verificar se o nível da graduação é apropriado para o estudante
-    const beltLevels = ['branca', 'amarela', 'vermelha', 'laranja', 'verde', 'roxa', 'marrom', 'preta'];
+    // Verificar se a faixa do estudante é compatível
+    const beltLevels = [
+      "branco",
+      "amarelo",
+      "laranja",
+      "verde",
+      "azul",
+      "roxo",
+      "castanho",
+      "preto"
+    ];
+
     const studentBeltIndex = beltLevels.indexOf(student.belt);
-    const graduationLevelIndex = beltLevels.indexOf(graduation.level);
+    const graduationBeltIndex = beltLevels.indexOf(graduation.level);
 
-    if (graduationLevelIndex !== studentBeltIndex + 1) {
-      throw new Error("O nível desta graduação não é apropriado para o estudante");
+    if (studentBeltIndex === -1 || graduationBeltIndex === -1) {
+      throw new Error("Faixa inválida");
     }
 
-    // Verificar se o estudante já está inscrito em outra graduação na mesma data
-    const graduationDate = new Date(graduation.date);
-    const existingGraduation = await Graduation.findOne({
-      enrolledStudents: studentId,
-      date: {
-        $gte: new Date(graduationDate.setHours(0, 0, 0, 0)),
-        $lt: new Date(graduationDate.setHours(23, 59, 59, 999))
-      }
-    });
-
-    if (existingGraduation) {
-      throw new Error("Estudante já está inscrito em outra graduação na mesma data");
+    if (studentBeltIndex !== graduationBeltIndex - 1) {
+      throw new Error(
+        `Faixa atual (${student.belt}) não é adequada para esta graduação (${graduation.level}). ` +
+        `Você só pode participar de graduações para o próximo nível.`
+      );
     }
 
-    // Inscrever o estudante
+    // Adicionar estudante à graduação
     graduation.enrolledStudents.push(studentId);
     await graduation.save();
 
-    // Enviar email de confirmação
-    await sendGraduationInvitationEmail(student.email, graduation);
-
     return {
-      message: "Estudante inscrito com sucesso",
-      graduation
+      message: "Inscrição realizada com sucesso",
+      graduation: {
+        id: graduation._id,
+        level: graduation.level,
+        date: graduation.date,
+        scope: graduation.scope,
+        location: graduation.location
+      }
     };
   } catch (error) {
     throw new Error("Erro ao inscrever estudante: " + error.message);

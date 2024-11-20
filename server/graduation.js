@@ -12,13 +12,14 @@ const GraduationRouter = () => {
   // 1. Rota para criar graduação (apenas Admin)
   router.post("/create", verifyTokenMiddleware("Admin"), async (req, res) => {
     try {
-      const { level, instructorId, location, date, availableSlots } = req.body;
+      const { level, instructorId, location, date, availableSlots, scope } = req.body;
       const graduation = await GraduationController.createGraduation(
         level,
         instructorId,
         location,
         date,
-        availableSlots
+        availableSlots,
+        scope
       );
       res.status(201).json(graduation);
     } catch (error) {
@@ -29,14 +30,13 @@ const GraduationRouter = () => {
   // 2. Rota para avaliar graduação (apenas Admin)
   router.patch(
     "/evaluate/:id",
-    verifyTokenMiddleware("Admin"), // Middleware para validar o token e permissões
+    verifyTokenMiddleware("Admin"),
     async (req, res) => {
       try {
-        const { score, comments } = req.body; // Removido instructorId do body
-        const { id } = req.params; // ID da graduação
-        const instructorId = req.userId; // Obtém o ID do instrutor diretamente do token
+        const { score, comments } = req.body;
+        const { id } = req.params;
+        const instructorId = req.userId;
 
-        // Chama o controlador com o instructorId do token
         const result = await GraduationController.evaluateGraduation(
           id,
           score,
@@ -48,10 +48,8 @@ const GraduationRouter = () => {
       } catch (error) {
         console.error("Erro ao avaliar graduação:", error.message);
         if (error.message.includes("já foi avaliada")) {
-          // Se a graduação já foi avaliada, envia uma resposta apropriada
           res.status(400).json({ message: "Esta graduação já foi avaliada." });
         } else {
-          // Outros erros gerais
           res.status(500).json({ message: error.message });
         }
       }
@@ -116,6 +114,22 @@ const GraduationRouter = () => {
       }
     }
   );
+
+  // 7. Rota para inscrever aluno em uma graduação
+  router.post("/enroll", verifyTokenMiddleware(), async (req, res) => {
+    try {
+      const { graduationId, studentId } = req.body;
+      const result = await GraduationController.enrollStudentInGraduation(graduationId, studentId);
+      res.status(200).json(result);
+    } catch (error) {
+      // Se o erro for relacionado a restrições de plano ou outras validações
+      if (error.message.includes("plano") || error.message.includes("não permite")) {
+        res.status(403).json({ message: error.message });
+      } else {
+        res.status(500).json({ message: error.message });
+      }
+    }
+  });
 
   // Rota para listar todas as graduações com filtros e paginação
   router.get("/", verifyTokenMiddleware(), async (req, res) => {

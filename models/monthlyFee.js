@@ -1,35 +1,59 @@
-let mongoose = require("mongoose");
-let Schema = mongoose.Schema;
+const mongoose = require("mongoose");
+const Schema = mongoose.Schema;
 
-let monthlyFeeSchema = new Schema({
-  user: { type: Schema.Types.ObjectId, ref: "Student", required: true },
-  amount: { type: Number, required: true },
-  startDate: { type: Date, default: Date.now }, // Data de início (data atual)
+const monthlyFeeSchema = new Schema({
+  student: { 
+    type: Schema.Types.ObjectId, 
+    ref: "Student", 
+    required: true 
+  },
+  plan: { 
+    type: Schema.Types.ObjectId, 
+    ref: "MonthlyPlan", 
+    required: true 
+  },
+  amount: { 
+    type: Number, 
+    required: true,
+    min: 0 
+  },
   dueDate: {
     type: Date,
-    required: true,
-    default: function () {
-      // Define a data limite como 30 dias após o início
-      let today = new Date();
-      today.setMonth(today.getMonth() + 1); // Um mês depois
-      return today;
-    },
+    required: true
   },
-  paymentDate: { type: Date }, // Data em que o pagamento foi efetuado
+  paymentDate: { 
+    type: Date 
+  },
   status: {
     type: String,
-    enum: ["Pago", "Pendente", "Atrasado"],
-    default: "Pendente", // Status por padrão é "Pendente"
+    enum: ["pending", "paid", "late", "cancelled"],
+    default: "pending"
   },
-  method: {
+  paymentMethod: {
     type: String,
-    enum: ["Dinheiro", "Cartão", "Transferência"],
-    default: "Dinheiro",
+    enum: ["cash", "card", "transfer"],
+    required: function() {
+      return this.status === "paid";
+    }
   },
-  transactionId: { type: String },
-  notes: { type: String },
+  transactionId: { 
+    type: String 
+  },
+  notes: { 
+    type: String 
+  }
 }, {
-  collection: 'monthly_fees'
+  timestamps: true,
+  collection: "monthly_fees"
 });
 
-module.exports = mongoose.model("MonthlyFee", monthlyFeeSchema);
+// Middleware para atualizar status para "late" se passou da data de vencimento
+monthlyFeeSchema.pre("save", function(next) {
+  if (this.status === "pending" && this.dueDate < new Date()) {
+    this.status = "late";
+  }
+  next();
+});
+
+const MonthlyFee = mongoose.model("MonthlyFee", monthlyFeeSchema);
+module.exports = MonthlyFee;

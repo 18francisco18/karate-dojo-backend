@@ -93,10 +93,10 @@ const studentSchema = new Schema({
     type: mongoose.Schema.Types.ObjectId, 
     ref: "MonthlyFee" 
   }],
-  monthlyPlan: [{ 
+  monthlyPlan: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: "MonthlyPlan" 
-  }],
+  },
   graduation: [{ 
     type: mongoose.Schema.Types.ObjectId, 
     ref: "Graduation" 

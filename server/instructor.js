@@ -5,6 +5,7 @@ const VerifyToken = require("../middleware/token");
 const InstructorController = require("../data/instructor/controller");
 const MonthlyFeeController = require("../data/monthlyFees/controller");
 const GraduationController = require("../data/graduation/controller");
+const MonthlyPlanController = require("../data/monthlyPlans/controller");
 
 const InstructorRouter = () => {
   const router = express.Router();
@@ -139,15 +140,27 @@ const InstructorRouter = () => {
   );
 
   // Rota para marcar uma mensalidade como paga
-  router.patch("/monthly-fees/:id/pay", async (req, res) => {
+  router.patch("/monthly-fees/:id/pay", VerifyToken(), async (req, res) => {
     try {
       const monthlyFeeId = req.params.id;
-      const updatedMonthlyFee = await MonthlyFeeController.markMonthlyFeeAsPaid(
-        monthlyFeeId
+      const { paymentMethod } = req.body;
+
+      if (!paymentMethod) {
+        return res.status(400).json({ 
+          error: "Método de pagamento é obrigatório",
+          message: "Por favor, especifique o método de pagamento (ex: 'credit_card', 'debit_card', 'cash', 'pix')"
+        });
+      }
+
+      const result = await MonthlyFeeController.markMonthlyFeeAsPaid(
+        monthlyFeeId,
+        paymentMethod
       );
+      
       res.status(200).json({
         message: "Mensalidade marcada como paga",
-        data: updatedMonthlyFee,
+        data: result.monthlyFee,
+        receiptPath: result.receiptPath
       });
     } catch (error) {
       res.status(400).json({ message: error.message });
@@ -224,6 +237,45 @@ const InstructorRouter = () => {
       }
     }
   );
+
+  // Rotas de Planos Mensais
+  router.get("/plans", VerifyToken("Admin"), async (req, res) => {
+    try {
+      const plans = await MonthlyPlanController.getAll();
+      res.json(plans);
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  router.post("/plans/create", VerifyToken("Admin"), async (req, res) => {
+    try {
+      const { name, price, graduationScopes } = req.body;
+      const result = await MonthlyPlanController.createPlan(name, price, graduationScopes);
+      res.json(result);
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  router.put("/plans/:planId", VerifyToken("Admin"), async (req, res) => {
+    try {
+      const { price, graduationScopes } = req.body;
+      const result = await MonthlyPlanController.updatePlan(req.params.planId, price, graduationScopes);
+      res.json(result);
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  router.delete("/plans/:planId", VerifyToken("Admin"), async (req, res) => {
+    try {
+      const result = await MonthlyPlanController.deletePlan(req.params.planId);
+      res.json(result);
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  });
 
   return router;
 };

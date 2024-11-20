@@ -1,32 +1,40 @@
 // models/monthlyPlans.js
-let mongoose = require("mongoose");
-let Schema = mongoose.Schema;
+const mongoose = require("mongoose");
+const Schema = mongoose.Schema;
 
-let monthlyPlanSchema = new Schema({
-  user: { type: Schema.Types.ObjectId, ref: "User", required: true },
-  type: {
-    type: String,
-    enum: ["Basic", "Standard", "Premium"],
-    required: true,
-  },
-  price: {
-    type: Number,
-    required: true,
-    default: function () {
-      switch (this.type) {
-        case "Basic":
-          return 50;
-        case "Standard":
-          return 100;
-        case "Premium":
-          return 150;
-        default:
-          return 0;
-      }
+const monthlyPlanSchema = new Schema(
+  {
+    user: { 
+      type: Schema.Types.ObjectId, 
+      ref: "Student",
+      required: false // Agora é opcional para permitir planos template
     },
+    name: {
+      type: String,
+      required: true,
+    },
+    price: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    graduationScopes: {
+      type: [String],
+      enum: ["internal", "regional", "national"],
+      required: true,
+      validate: {
+        validator: function(v) {
+          return v && v.length > 0;
+        },
+        message: "Pelo menos um escopo de graduação deve ser especificado"
+      }
+    }
   },
-}, {
-  collection: 'monthly_plans'
-});
+  {
+    timestamps: true,
+    collection: "monthly_plans", // Corrigido para monthly_plans
+  }
+);
 
-module.exports = mongoose.model("MonthlyPlan", monthlyPlanSchema);
+const MonthlyPlan = mongoose.model("MonthlyPlan", monthlyPlanSchema);
+module.exports = MonthlyPlan;
