@@ -1,9 +1,14 @@
 // jobs/cronJobs.js
 const cron = require("node-cron");
-const MonthlyFeeController = require("../data/monthlyFees/controller"); // Importando o controller
+const MonthlyFeeController = require("../data/monthlyFees/controller");
 
-// Agende o cron job para rodar todos os minutos
+// Agende o cron job para rodar a cada minuto
 cron.schedule("* * * * *", async () => {
-  await MonthlyFeeController.updateMonthlyFeeStatus(); // Chama a função do controller
-  console.log("Verificação de mensalidades atrasadas realizada.");
+  try {
+    console.log("Iniciando verificação de mensalidades...");
+    await MonthlyFeeController.updateMonthlyFeeStatus();
+    console.log("Verificação de mensalidades concluída com sucesso.");
+  } catch (error) {
+    console.error("Erro ao verificar mensalidades:", error);
+  }
 });

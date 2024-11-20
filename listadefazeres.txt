@@ -21,3 +21,7 @@ Gestão de Atletas e Mensalidades:
     exames e mensalidades; FEITO 
     • Adicionar/remover atletas e propor novos exames de graduação. FEITO
 
+
+    FAZER TESTE GERAL SÓ DPS DAR COMMIT MAS ACHO QUE TA TUDO OK
+    METER O NOME DO INSTRUTOR NA RECEIPT DE PAGAMENTO
+

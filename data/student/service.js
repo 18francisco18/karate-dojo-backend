@@ -1,11 +1,11 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const qrCode = require("qrcode");
-const { Student } = require("../../models/user"); // Certifique-se de que o caminho esteja correto
+const { Student } = require("../../models/user");
 const config = require("../../config");
 
 function StudentService() {
-  let service = {
+  const service = {
     createStudent,
     findAllStudents,
     findStudentById,
@@ -20,165 +20,208 @@ function StudentService() {
     generateQRCodeWithCredentials,
   };
 
-  // Função para criar um novo estudante
+  async function validateStudentData(studentData) {
+    const errors = [];
+    
+    if (!studentData.name || studentData.name.trim().length < 3) {
+      errors.push("Nome deve ter pelo menos 3 caracteres");
+    }
+    
+    if (!studentData.email || !studentData.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+      errors.push("Email inválido");
+    }
+    
+    if (!studentData.password || studentData.password.length < 6) {
+      errors.push("Senha deve ter pelo menos 6 caracteres");
+    }
+    
+    if (!studentData.belt) {
+      errors.push("Faixa é obrigatória");
+    }
+    
+    return errors;
+  }
+
   async function createStudent(studentData) {
     try {
+      // Validação dos dados
+      const validationErrors = await validateStudentData(studentData);
+      if (validationErrors.length > 0) {
+        throw new Error(validationErrors.join(", "));
+      }
+
+      // Verifica se já existe um estudante com o mesmo email
+      const existingStudent = await Student.findOne({ email: studentData.email });
+      if (existingStudent) {
+        throw new Error("Email já está em uso");
+      }
+
       const hashPassword = await createPassword(studentData.password);
-      let newStudent = new Student({
+      const newStudent = new Student({
         ...studentData,
         password: hashPassword,
+        active: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
       });
 
       const result = await newStudent.save();
       return result;
     } catch (err) {
-      console.error("Error creating student:", err);
-      return Promise.reject(`Failed to create student: ${err.message}`);
+      console.error("Erro ao criar estudante:", err);
+      throw err;
     }
   }
 
-  // Buscar todos os estudantes
   async function findAllStudents() {
     try {
-      const students = await Student.find({})
+      const students = await Student.find({ active: true })
+        .select("-password")
         .populate("instructor")
         .populate("monthlyFee")
         .populate("monthlyPlan")
         .populate("graduation");
       return students;
     } catch (err) {
-      console.error("Error fetching students:", err);
-      return Promise.reject("Error fetching students");
+      console.error("Erro ao buscar estudantes:", err);
+      throw new Error("Erro ao buscar estudantes");
     }
   }
 
-  // Buscar um estudante pelo ID
   async function findStudentById(id) {
     try {
-      const student = await Student.findById(id)
+      const student = await Student.findOne({ _id: id, active: true })
+        .select("-password")
         .populate("instructor")
         .populate("monthlyFee")
         .populate("monthlyPlan")
         .populate("graduation");
-      if (!student) {
-        return Promise.reject("Student not found");
-      }
       return student;
     } catch (err) {
-      console.error("Error fetching student by ID:", err);
-      return Promise.reject("Error fetching student");
+      console.error("Erro ao buscar estudante:", err);
+      throw new Error("Erro ao buscar estudante");
     }
   }
 
-  // Buscar um estudante pelo email
   async function findStudentByEmail(email) {
     try {
-      const student = await Student.findOne({ email });
-      if (!student) {
-        return Promise.reject("Student not found");
-      }
-      return student;
+      return await Student.findOne({ email, active: true })
+        .populate("instructor")
+        .populate("monthlyFee")
+        .populate("monthlyPlan")
+        .populate("graduation");
     } catch (err) {
-      console.error("Error fetching student by email:", err);
-      return Promise.reject("Error fetching student");
+      console.error("Erro ao buscar estudante por email:", err);
+      throw new Error("Erro ao buscar estudante");
     }
   }
 
-  // Remover um estudante pelo ID
   async function removeStudentById(id) {
     try {
-      const student = await Student.findByIdAndDelete(id);
-      if (!student) {
-        return Promise.reject("Student not found");
-      }
-      return "Student successfully removed";
+      // Soft delete - apenas marca como inativo
+      await Student.findByIdAndUpdate(id, { 
+        active: false,
+        updatedAt: new Date()
+      });
+      return "Estudante removido com sucesso";
     } catch (err) {
-      console.error("Error removing student:", err);
-      return Promise.reject("Error removing student");
+      console.error("Erro ao remover estudante:", err);
+      throw new Error("Erro ao remover estudante");
     }
   }
 
-  // Atualizar um estudante
   async function updateStudent(id, updateData) {
     try {
-      const student = await Student.findByIdAndUpdate(id, updateData, {
-        new: true,
-      });
-      if (!student) {
-        return Promise.reject("Student not found");
+      if (updateData.password) {
+        updateData.password = await createPassword(updateData.password);
       }
+      
+      updateData.updatedAt = new Date();
+      
+      const student = await Student.findByIdAndUpdate(
+        id,
+        { $set: updateData },
+        { new: true, runValidators: true }
+      )
+      .select("-password")
+      .populate("instructor")
+      .populate("monthlyFee")
+      .populate("monthlyPlan")
+      .populate("graduation");
+      
+      if (!student) {
+        throw new Error("Estudante não encontrado");
+      }
+      
       return student;
     } catch (err) {
-      console.error("Error updating student:", err);
-      return Promise.reject("Error updating student");
-    }
-  }
-
-  // Adicionar uma mensalidade a um estudante
-  async function addMonthlyFee(studentId, monthlyFeeId) {
-    try {
-      const student = await findStudentById(studentId);
-      if (!student) {
-        return Promise.reject("Student not found");
-      }
-      student.monthlyFee.push(monthlyFeeId);
-      await student.save();
-      return student;
-    } catch (err) {
-      console.error("Error adding monthly fee:", err);
-      return Promise.reject("Error adding monthly fee");
-    }
-  }
-
-  // Função para criar um hash da senha
-  function createPassword(password) {
-    return bcrypt.hash(password, config.saltRounds);
-  }
-
-  // Função para comparar senhas
-  function comparePassword(password, hash) {
-    return bcrypt.compare(password, hash);
-  }
-
-  // Função para criar um token JWT
-  function createToken(student) {
-    const token = jwt.sign(
-      { id: student._id, name: student.name, role: student.role },
-      config.secret,
-      { expiresIn: config.expiresPassword }
-    );
-    return token; // Retorna apenas o token
-  }
-
-  // Verificar um token JWT
-  async function verifyToken(token) {
-    try {
-      const decoded = await new Promise((resolve, reject) => {
-        jwt.verify(token, config.secret, (err, decoded) => {
-          if (err) reject(err);
-          resolve(decoded);
-        });
-      });
-      return decoded;
-    } catch (err) {
-      console.error("Error verifying token:", err);
+      console.error("Erro ao atualizar estudante:", err);
       throw err;
     }
   }
 
-  // Gerar QR Code com credenciais
+  async function createPassword(password) {
+    const salt = await bcrypt.genSalt(config.saltRounds || 10);
+    return bcrypt.hash(password, salt);
+  }
+
+  async function comparePassword(password, hash) {
+    return bcrypt.compare(password, hash);
+  }
+
+  function createToken(student) {
+    return jwt.sign(
+      { 
+        id: student._id,
+        email: student.email,
+        role: "student" 
+      },
+      config.secret,
+      { 
+        expiresIn: "1d" 
+      }
+    );
+  }
+
+  async function verifyToken(token) {
+    try {
+      return jwt.verify(token, config.secret);
+    } catch (err) {
+      console.error("Erro ao verificar token:", err);
+      throw new Error("Token inválido ou expirado");
+    }
+  }
+
   async function generateQRCodeWithCredentials(student) {
     try {
-      const credentials = {
+      const data = {
+        id: student._id,
+        name: student.name,
         email: student.email,
-        password: student.password, // Cuidado com a exposição de senhas
+        belt: student.belt
       };
-      const dataString = JSON.stringify(credentials);
-      const qrCodeDataUrl = await qrCode.toDataURL(dataString);
-      return qrCodeDataUrl;
+      return await qrCode.toDataURL(JSON.stringify(data));
     } catch (err) {
-      console.error("Error generating QR code:", err);
-      throw new Error("Unable to generate QR code");
+      console.error("Erro ao gerar QR Code:", err);
+      throw new Error("Erro ao gerar QR Code");
+    }
+  }
+
+  async function addMonthlyFee(studentId, feeData) {
+    try {
+      const student = await Student.findById(studentId);
+      if (!student) {
+        throw new Error("Estudante não encontrado");
+      }
+      
+      student.monthlyFee.push(feeData);
+      student.updatedAt = new Date();
+      
+      await student.save();
+      return student;
+    } catch (err) {
+      console.error("Erro ao adicionar mensalidade:", err);
+      throw err;
     }
   }
 

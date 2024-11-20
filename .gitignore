@@ -1,3 +1,4 @@
 /node_modules
 /diplomas
-/faturas
+/receipts
+/.env

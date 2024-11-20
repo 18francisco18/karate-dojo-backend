@@ -10,6 +10,7 @@ const MonthlyFeeController = {
   markMonthlyFeeAsPaid,
   notifyOverdueMonthlyFee,
   manuallyUnsuspendStudent,
+  getAllMonthlyFees,
 };
 
 // Função para criar uma mensalidade
@@ -83,7 +84,15 @@ async function updateMonthlyFeeStatus() {
 async function markMonthlyFeeAsPaid(monthlyFeeId) {
   try {
     // Encontra a mensalidade pelo ID
-    const monthlyFee = await MonthlyFee.findById(monthlyFeeId).populate("user");
+    const monthlyFee = await MonthlyFee.findById(monthlyFeeId)
+      .populate("user")
+      .populate({
+        path: "user",
+        populate: {
+          path: "instructor",
+          select: "name"
+        }
+      });
     if (!monthlyFee) {
       throw new Error("Mensalidade não encontrada");
     }
@@ -95,6 +104,7 @@ async function markMonthlyFeeAsPaid(monthlyFeeId) {
 
     // Atualiza o status da mensalidade para "Pago"
     monthlyFee.status = "Pago";
+    monthlyFee.paymentDate = new Date();
     await monthlyFee.save();
 
     // Gera o recibo de pagamento
@@ -179,6 +189,20 @@ async function manuallyUnsuspendStudent(studentId) {
     return student;
   } catch (error) {
     console.error("Erro ao remover suspensão do aluno:", error.message);
+    throw error;
+  }
+}
+
+// Função para obter todas as mensalidades
+async function getAllMonthlyFees() {
+  try {
+    const monthlyFees = await MonthlyFee.find()
+      .populate('user', 'name email') // Popula os dados do usuário
+      .sort({ dueDate: -1 }); // Ordena por data de vencimento, mais recente primeiro
+    
+    return monthlyFees;
+  } catch (error) {
+    console.error("Erro ao buscar mensalidades:", error.message);
     throw error;
   }
 }

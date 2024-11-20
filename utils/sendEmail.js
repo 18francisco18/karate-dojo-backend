@@ -1,24 +1,26 @@
 // utils/sendEmail.js
 const nodemailer = require("nodemailer");
+require("dotenv").config();
 
 async function sendEmail(to, subject, text) {
   try {
-    // Configuração do transportador de e-mail usando SMTP (ajuste de acordo com o seu provedor)
+    // Configuração do transportador de e-mail usando variáveis do .env
     let transporter = nodemailer.createTransport({
-      host: "sandbox.smtp.mailtrap.io",
-      port: 2525,
+      host: process.env.EMAIL_HOST,
+      port: process.env.EMAIL_PORT,
+      secure: process.env.EMAIL_SECURE === "true",
       auth: {
-        user: "16273252cae631",
-        pass: "1b4171bcd26880",
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
       },
     });
 
     // Detalhes do e-mail
     let mailOptions = {
-      from: "cobrakaisupport@gmail.com", // De quem está enviando
-      to: to, // Destinatário
-      subject: subject, // Assunto do e-mail
-      text: text, // Conteúdo do e-mail
+      from: process.env.EMAIL_FROM,
+      to: to,
+      subject: subject,
+      text: text,
     };
 
     // Envia o e-mail

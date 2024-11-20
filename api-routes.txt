@@ -1,0 +1,209 @@
+KARATE DOJO API ROUTES DOCUMENTATION
+
+=== AUTENTICAÇÃO DE INSTRUTORES (authInstructor.js) ===
+
+1. Registro de Instrutor
+   Rota: POST /authInstructor/register
+   Função: Criar novo instrutor
+   Acesso: Admin apenas
+   
+2. Login de Instrutor
+   Rota: POST /authInstructor/login
+   Função: Autenticar instrutor
+   Acesso: Público
+   
+3. Logout de Instrutor
+   Rota: POST /authInstructor/logout
+   Função: Realizar logout
+   Acesso: Instrutor autenticado
+   
+4. Listar Instrutores
+   Rota: GET /authInstructor/instructors
+   Função: Buscar todos os instrutores
+   Acesso: Admin apenas
+   
+5. Buscar Instrutor
+   Rota: GET /authInstructor/instructor/:id
+   Função: Buscar instrutor por ID
+   Acesso: Admin apenas
+
+6. Atualizar Instrutor
+   Rota: PUT /authInstructor/instructor/:id
+   Função: Atualizar informações do instrutor
+   Acesso: Admin apenas
+
+7. Remover Instrutor
+   Rota: DELETE /authInstructor/instructor/:id
+   Função: Remover um instrutor
+   Acesso: Admin apenas
+
+=== AUTENTICAÇÃO DE ESTUDANTES (authStudent.js) ===
+
+1. Registro de Estudante
+   Rota: POST /authStudent/register
+   Função: Criar novo estudante
+   Acesso: Público
+   
+2. Login de Estudante
+   Rota: POST /authStudent/login
+   Função: Autenticar estudante
+   Acesso: Público
+
+3. Logout de Estudante
+   Rota: POST /authStudent/logout
+   Função: Realizar logout
+   Acesso: Estudante autenticado
+
+4. Verificar Autenticação
+   Rota: GET /authStudent/check-auth
+   Função: Verificar status da autenticação
+   Acesso: Estudante autenticado
+
+5. Listar Estudantes
+   Rota: GET /authStudent/students
+   Função: Listar todos os estudantes
+   Acesso: Usuário autenticado
+
+6. Buscar Estudante
+   Rota: GET /authStudent/student/:id
+   Função: Buscar estudante por ID
+   Acesso: Usuário autenticado
+
+7. Atualizar Estudante
+   Rota: PUT /authStudent/student/:id
+   Função: Atualizar informações do estudante
+   Acesso: Usuário autenticado
+
+=== GRADUAÇÕES (graduation.js) ===
+
+1. Criar Graduação
+   Rota: POST /graduation/create
+   Função: Criar nova graduação
+   Acesso: Instrutor apenas
+   
+2. Avaliar Graduação
+   Rota: PATCH /graduation/evaluate/:id
+   Função: Avaliar uma graduação
+   Acesso: Instrutor apenas
+   
+3. Buscar Graduações do Usuário
+   Rota: GET /graduation/user/:userId?
+   Função: Obter graduações de um usuário
+   Acesso: Usuário autenticado
+   
+4. Buscar Graduação
+   Rota: GET /graduation/:id
+   Função: Obter graduação específica
+   Acesso: Usuário autenticado
+   
+5. Atualizar Graduação
+   Rota: PUT /graduation/update/:id
+   Função: Atualizar informações da graduação
+   Acesso: Instrutor apenas
+
+=== GESTÃO DE INSTRUTORES (instructor.js) ===
+
+1. Buscar Instrutor
+   Rota: GET /instructor/instructor/:id
+   Função: Obter detalhes do instrutor
+   Acesso: Usuário autenticado
+   
+2. Adicionar Aluno
+   Rota: POST /instructor/instructor/:id/add-student/:studentId?
+   Função: Adicionar aluno a um instrutor
+   Acesso: Instrutor autenticado
+   
+3. Remover Aluno
+   Rota: POST /instructor/remove-student/:studentId?
+   Função: Remover aluno de um instrutor
+   Acesso: Instrutor autenticado
+   
+4. Listar Alunos
+   Rota: GET /instructor/instructor/:id/students
+   Função: Obter todos os alunos de um instrutor
+   Acesso: Usuário autenticado
+   
+5. Buscar Alunos por Email
+   Rota: GET /instructor/students-by-email
+   Função: Buscar alunos de um instrutor por email
+   Acesso: Instrutor autenticado
+
+6. Listar Todos os Alunos
+   Rota: GET /instructor/students
+   Função: Listar todos os alunos no sistema
+   Acesso: Instrutor autenticado
+
+7. Remover Todos os Alunos
+   Rota: DELETE /instructor/instructor/:id/remove-all-students
+   Função: Remover todos os alunos de um instrutor
+   Acesso: Instrutor autenticado
+
+=== GESTÃO DE MENSALIDADES ===
+
+1. Marcar Mensalidade como Paga
+   Rota: PATCH /instructor/monthly-fees/:id/pay
+   Função: Marcar uma mensalidade como paga
+   Acesso: Instrutor autenticado
+
+2. Listar Mensalidades
+   Rota: GET /instructor/monthly-fees
+   Função: Obter todas as mensalidades
+   Acesso: Instrutor autenticado
+
+3. Remover Suspensão de Aluno
+   Rota: POST /instructor/unsuspend-student/:studentId?
+   Função: Remover manualmente a suspensão de um aluno
+   Acesso: Instrutor autenticado
+
+=== GESTÃO DE ESTUDANTES (student.js) ===
+
+1. Listar Planos Disponíveis
+   Rota: GET /student/available-plans
+   Função: Obter planos disponíveis
+   Acesso: Público
+
+2. Escolher Plano
+   Rota: POST /student/choose-plan/:planType?
+   Função: Estudante escolhe um plano
+   Acesso: Estudante autenticado
+
+3. Cancelar Plano
+   Rota: DELETE /student/cancel-plan
+   Função: Cancelar plano atual
+   Acesso: Estudante autenticado
+
+4. Escolher Instrutor
+   Rota: POST /student/choose-instructor/:instructorId?
+   Função: Escolher um instrutor
+   Acesso: Estudante autenticado
+
+5. Listar Graduações
+   Rota: GET /student/graduations
+   Função: Listar graduações disponíveis
+   Acesso: Estudante autenticado
+
+6. Inscrever em Graduação
+   Rota: POST /student/enroll-graduation/:graduationId?
+   Função: Inscrever-se em uma graduação
+   Acesso: Estudante autenticado
+
+=== RECUPERAÇÃO DE SENHA (password.js) ===
+
+1. Solicitar Recuperação
+   Rota: POST /password/forgot
+   Função: Solicitar recuperação de senha
+   Acesso: Público
+
+2. Redefinir Senha
+   Rota: POST /password/reset/:token
+   Função: Redefinir senha com token
+   Acesso: Público
+
+Notas:
+- Todas as rotas protegidas requerem um token JWT válido
+- Instrutores têm acesso total a todas as rotas administrativas
+- Instrutores têm acesso limitado às suas próprias informações e seus alunos
+- Estudantes têm acesso limitado às suas próprias informações
+- Tokens são enviados via cookies HTTP-only para maior segurança
+- Todas as senhas são hasheadas antes de serem armazenadas
+- Rotas sensíveis incluem verificação de suspensão para estudantes

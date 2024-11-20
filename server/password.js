@@ -1,99 +1,132 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const User = require("../models/user");
-const secret = "supersecret";
+const config = require("../config");
 const nodemailer = require("nodemailer");
 const bodyParser = require("body-parser");
-const bcrypt = require("bcrypt");
-const saltRounds = 10;
+const bcryptjs = require("bcryptjs");
 
 function RecoverPassword() {
   const router = express();
 
-  router.use(bodyParser.json({ limit: "100mb" }));
-  router.use(bodyParser.urlencoded({ limit: "100mb", extended: true }));
+  router.use(bodyParser.json({ limit: "10mb" }));
+  router.use(bodyParser.urlencoded({ limit: "10mb", extended: true }));
 
   router.post("/forgot-password", async (req, res) => {
-    const { email } = req.body;
-    const user = await User.findOne({ email });
-
-    if (!user) {
-      return res.status(400).send("User with the given email does not exist");
-    }
-
-    const token = jwt.sign({ email: user.email }, secret, { expiresIn: "1h" });
-
-    let transporter = nodemailer.createTransport({
-      host: "sandbox.smtp.mailtrap.io",
-      port: 2525,
-      auth: {
-        user: "16273252cae631",
-        pass: "1b4171bcd26880",
-      },
-    });
-
-    let mailOptions = {
-      from: "support.househub@gmail.com",
-      to: user.email,
-      subject: "Password recovery",
-      text: `You requested for a password recovery, here you have your token to change the password: ${token}`,
-    };
-
-    transporter.sendMail(mailOptions, function (err, info) {
-      if (err) {
-        console.error("Error sending email", err);
-      } else {
-        console.log("Email sent: " + info.response);
-      }
-    });
-
-    res.status(200).send("Password recovery email sent successfully");
-  });
-
-  router.get("/reset/:token", async (req, res) => {
-    const { token } = req.params;
-
-    jwt.verify(token, secret, async function (err, decoded) {
-      if (err) {
-        return res.status(400).send("Invalid token");
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ error: "Email é obrigatório" });
       }
 
-      const user = await User.findOne({ email: decoded.email });
+      const user = await User.findOne({ email });
 
       if (!user) {
-        return res.status(400).send("User with the given email does not exist");
+        // Resposta vaga por segurança
+        return res.status(200).json({ 
+          message: "Se um usuário com este email existir, você receberá um email com instruções." 
+        });
       }
 
-      res.render("reset-password", { token });
-    });
-  });
+      const token = jwt.sign(
+        { email: user.email }, 
+        config.secret,
+        { expiresIn: "1h" }
+      );
 
-  router.post("/reset/:token", async (req, res) => {
-    const { token } = req.params;
-    const { password } = req.body;
+      // Atualiza o token de reset no usuário
+      user.passwordResetToken = token;
+      user.passwordResetExpires = Date.now() + 3600000; // 1 hora
+      await user.save();
 
-    jwt.verify(token, secret, async function (err, decoded) {
-      if (err) {
-        return res.status(400).send("Invalid token");
-      }
-
-      const user = await User.findOne({ email: decoded.email });
-
-      if (!user) {
-        return res.status(400).send("User with the given email does not exist");
-      }
-
-      bcrypt.hash(password, saltRounds, async function (err, hash) {
-        if (err) {
-          return res.status(500).send("Error hashing password");
-        }
-
-        user.password = hash;
-        await user.save();
-
-        res.status(200).send("Password reset successfully");
+      const transporter = nodemailer.createTransport({
+        host: process.env.EMAIL_HOST,
+        port: process.env.EMAIL_PORT,
+        secure: process.env.EMAIL_SECURE === "true",
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS,
+        },
       });
-    });
+
+      const mailOptions = {
+        from: process.env.EMAIL_FROM,
+        to: user.email,
+        subject: "Recuperação de Senha - Karate Dojo",
+        text: `Você solicitou a recuperação de senha. Use o token a seguir para alterar sua senha: ${token}\n\nEste token expira em 1 hora.`,
+        html: `
+          <h2>Recuperação de Senha</h2>
+          <p>Você solicitou a recuperação de senha.</p>
+          <p>Use o token a seguir para alterar sua senha:</p>
+          <p><strong>${token}</strong></p>
+          <p>Este token expira em 1 hora.</p>
+          <p>Se você não solicitou esta recuperação, ignore este email.</p>
+        `,
+      };
+
+      await transporter.sendMail(mailOptions);
+
+      res.status(200).json({ 
+        message: "Se um usuário com este email existir, você receberá um email com instruções." 
+      });
+    } catch (error) {
+      console.error("Erro na recuperação de senha:", error);
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+
+  router.post("/reset-password", async (req, res) => {
+    try {
+      const { token, newPassword } = req.body;
+
+      if (!token || !newPassword) {
+        return res.status(400).json({ 
+          error: "Token e nova senha são obrigatórios" 
+        });
+      }
+
+      // Verifica o token e sua expiração
+      const decoded = jwt.verify(token, config.secret);
+      const user = await User.findOne({
+        email: decoded.email,
+        passwordResetToken: token,
+        passwordResetExpires: { $gt: Date.now() },
+      });
+
+      if (!user) {
+        return res.status(400).json({ 
+          error: "Token inválido ou expirado" 
+        });
+      }
+
+      // Valida a força da senha
+      if (newPassword.length < 8) {
+        return res.status(400).json({ 
+          error: "A senha deve ter pelo menos 8 caracteres" 
+        });
+      }
+
+      // Hash da nova senha
+      const salt = await bcryptjs.genSalt(10);
+      const hashedPassword = await bcryptjs.hash(newPassword, salt);
+
+      // Atualiza a senha e limpa os campos de reset
+      user.password = hashedPassword;
+      user.passwordResetToken = undefined;
+      user.passwordResetExpires = undefined;
+      await user.save();
+
+      res.status(200).json({ 
+        message: "Senha alterada com sucesso" 
+      });
+    } catch (error) {
+      console.error("Erro na redefinição de senha:", error);
+      if (error.name === "JsonWebTokenError") {
+        return res.status(400).json({ error: "Token inválido" });
+      }
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
   });
 
   return router;

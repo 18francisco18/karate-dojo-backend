@@ -117,6 +117,43 @@ const GraduationRouter = () => {
     }
   );
 
+  // Rota para listar todas as graduações com filtros e paginação
+  router.get("/", verifyTokenMiddleware(), async (req, res) => {
+    try {
+      const { 
+        beltColor, 
+        date, 
+        availableSlots, 
+        sortField, 
+        sortOrder,
+        page = 1,
+        limit = 10 
+      } = req.query;
+
+      const filters = {
+        beltColor,
+        date,
+        availableSlots
+      };
+
+      const sort = {
+        field: sortField,
+        order: sortOrder
+      };
+
+      const graduations = await GraduationController.getAllGraduations(
+        filters,
+        sort,
+        parseInt(page),
+        parseInt(limit)
+      );
+
+      res.status(200).json(graduations);
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   return router;
 };
 

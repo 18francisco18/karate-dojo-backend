@@ -2,201 +2,211 @@ const PDFDocument = require("pdfkit");
 const fs = require("fs");
 const path = require("path");
 
-async function generateDiploma(graduation, instructorName) {
+async function generateDiploma(
+  studentName,
+  beltLevel,
+  graduationDate,
+  instructorName
+) {
   return new Promise((resolve, reject) => {
-    // Certifique-se de que o estudante está associado e que o nome do estudante existe
-    if (!graduation.student || !graduation.student.name) {
-      return reject(new Error("Dados do estudante estão incompletos"));
-    }
+    try {
+      // Criar diretório para os diplomas se não existir
+      const dirPath = path.join(__dirname, "../diplomas");
+      if (!fs.existsSync(dirPath)) {
+        fs.mkdirSync(dirPath, { recursive: true });
+      }
 
-    const doc = new PDFDocument();
-    const dirPath = path.join(__dirname, "../diplomas");
-    const filePath = path.join(dirPath, `${graduation._id}.pdf`);
+      const doc = new PDFDocument();
+      const fileName = `${studentName.replace(
+        /\s+/g,
+        "_"
+      )}_${beltLevel}_${new Date().getTime()}.pdf`;
+      const filePath = path.join(dirPath, fileName);
+      const writeStream = fs.createWriteStream(filePath);
 
-    if (!fs.existsSync(dirPath)) {
-      fs.mkdirSync(dirPath, { recursive: true });
-    }
+      doc.pipe(writeStream);
 
-    const writeStream = fs.createWriteStream(filePath);
-    doc.pipe(writeStream);
-
-    // Adiciona conteúdo ao PDF
-    doc.image(path.join(__dirname, "../assets/logo-ipp.png"), {
-      fit: [100, 100],
-      align: "center",
-      valign: "top",
-    });
-
-    doc
-      .fontSize(30)
-      .font("Helvetica-Bold")
-      .text("Cobra Kai Dojo", { align: "center", underline: true });
-
-    doc
-      .moveDown()
-      .fontSize(25)
-      .font("Helvetica-Bold")
-      .text(`Diploma de Graduação`, { align: "center" });
-
-    doc
-      .moveDown()
-      .fontSize(18)
-      .font("Helvetica")
-      .text(
-        `Certificamos que o aluno ${graduation.student.name.toUpperCase()}`,
-        { align: "center" }
-      )
-      .moveDown()
-      .text(
-        `Alcançou o cinto de nível ${graduation.level.toUpperCase()} com mérito.`,
-        { align: "center" }
-      )
-      .moveDown()
-      .text(`Data de Graduação: ${graduation.date.toLocaleDateString()}`, {
+      // Adiciona logo
+      doc.image(path.join(__dirname, "../assets/logo-ipp.png"), {
+        fit: [100, 100],
         align: "center",
-      })
-      .moveDown()
-      .text(`Emitido no local: ${graduation.location}`, { align: "center" });
+        valign: "top",
+      });
 
-    doc
-      .moveDown()
-      .fontSize(14)
-      .text(`Pontuação obtida: ${graduation.score}`, { align: "center" });
+      doc
+        .fontSize(30)
+        .font("Helvetica-Bold")
+        .text("Cobra Kai Dojo", { align: "center", underline: true });
 
-    if (graduation.comments) {
       doc
         .moveDown()
-        .text(`Comentário: ${graduation.comments}`, { align: "center" });
+        .fontSize(25)
+        .font("Helvetica-Bold")
+        .text(`Diploma de Graduação`, { align: "center" });
+
+      doc
+        .moveDown()
+        .fontSize(18)
+        .font("Helvetica")
+        .text(`Certificamos que o aluno ${studentName.toUpperCase()}`, {
+          align: "center",
+        })
+        .moveDown()
+        .text(
+          `Alcançou o cinto de nível ${beltLevel.toUpperCase()} com mérito.`,
+          { align: "center" }
+        );
+
+      // Adiciona data da graduação
+      doc
+        .moveDown()
+        .moveDown()
+        .fontSize(12)
+        .text(`Data: ${new Date(graduationDate).toLocaleDateString()}`, {
+          align: "center",
+        });
+
+      // Adiciona imagem da assinatura
+      doc.moveDown().moveDown();
+
+      // Verifica se a imagem da assinatura existe
+      const signaturePath = path.join(
+        __dirname,
+        "../assets/masterSignature.png"
+      );
+      if (fs.existsSync(signaturePath)) {
+        doc.image(signaturePath, {
+          fit: [150, 50],
+          align: "center",
+        });
+      } else {
+        // Se não houver imagem, usa linha de assinatura
+        doc.text(`_______________________________`, { align: "center" });
+      }
+
+      doc
+        .fontSize(12)
+        .text(instructorName, { align: "center" })
+        .text("Instrutor Avaliador", { align: "center" });
+
+      // Finaliza o PDF
+      doc.end();
+
+      // Aguarda o stream terminar
+      writeStream.on("finish", () => {
+        resolve(filePath);
+      });
+
+      writeStream.on("error", (error) => {
+        reject(error);
+      });
+    } catch (error) {
+      reject(error);
     }
-
-    // Espaço adicional antes da assinatura
-    doc.moveDown(3);
-
-    // Adiciona a imagem de assinatura fictícia
-    const signaturePath = path.join(__dirname, "../assets/masterSignature.png");
-    const signatureWidth = 150; // Largura da imagem de assinatura
-    const pageWidth = doc.page.width; // Largura da página
-    const signatureX = (pageWidth - signatureWidth) / 2; // Centraliza a imagem
-    const signatureY = doc.y; // Usa a posição atual da linha
-
-    doc.image(signaturePath, signatureX, signatureY, {
-      width: signatureWidth,
-      height: 50,
-    });
-
-    // Adiciona a linha de assinatura e o nome do instrutor
-    doc
-      .moveDown(2)
-      .fontSize(16)
-      .text("_________________________", { align: "center" })
-      .text(`O Mestre: ${instructorName}`, { align: "center" })
-      .text("Cobra Kai Dojo", { align: "center" });
-
-    doc.end();
-
-    writeStream.on("finish", () => resolve(filePath));
-    writeStream.on("error", (error) => reject(error));
   });
 }
 
 async function generateReceipt(monthlyFee, instructorName) {
   return new Promise((resolve, reject) => {
-    if (!monthlyFee || !monthlyFee.user) {
-      return reject(new Error("Dados da mensalidade estão incompletos"));
-    }
+    try {
+      // Criar diretório para os recibos se não existir
+      const dirPath = path.join(__dirname, "../receipts");
+      if (!fs.existsSync(dirPath)) {
+        fs.mkdirSync(dirPath, { recursive: true });
+      }
 
-    const doc = new PDFDocument();
-    const dirPath = path.join(__dirname, "../faturas");
-    const filePath = path.join(dirPath, `${monthlyFee._id}.pdf`);
+      const doc = new PDFDocument();
+      const fileName = `recibo_${monthlyFee.user.name.replace(
+        /\s+/g,
+        "_"
+      )}_${new Date().getMonth() + 1}_${new Date().getFullYear()}.pdf`;
+      const filePath = path.join(dirPath, fileName);
+      const writeStream = fs.createWriteStream(filePath);
 
-    if (!fs.existsSync(dirPath)) {
-      fs.mkdirSync(dirPath, { recursive: true });
-    }
+      doc.pipe(writeStream);
 
-    const writeStream = fs.createWriteStream(filePath);
-    doc.pipe(writeStream);
-
-    // Adiciona conteúdo ao PDF
-    doc.image(path.join(__dirname, "../assets/logo-ipp.png"), {
-      fit: [100, 100],
-      align: "center",
-      valign: "top",
-    });
-
-    doc
-      .fontSize(30)
-      .font("Helvetica-Bold")
-      .text("Cobra Kai Dojo", { align: "center", underline: true });
-
-    doc
-      .moveDown()
-      .fontSize(25)
-      .font("Helvetica-Bold")
-      .text(`Recibo de Pagamento`, { align: "center" });
-
-    // Use monthlyFee.user.name instead of monthlyFee.user
-    const studentName = monthlyFee.user.name || monthlyFee.user._id.toString();
-
-    doc
-      .moveDown()
-      .fontSize(18)
-      .font("Helvetica")
-      .text(`Certificamos que o aluno ${studentName.toUpperCase()}`, {
+      // Adiciona logo
+      doc.image(path.join(__dirname, "../assets/logo-ipp.png"), {
+        fit: [100, 100],
         align: "center",
-      })
-      .moveDown()
-      .text(
-        `Efetuou o pagamento da mensalidade no valor de ${monthlyFee.amount}€`,
-        {
-          align: "center",
-        }
-      )
-      .moveDown()
-      .text(`Data de Vencimento: ${monthlyFee.dueDate.toLocaleDateString()}`, {
-        align: "center",
-      })
-      .moveDown()
-      .text(`Status: ${monthlyFee.status}`, { align: "center" })
-      .moveDown()
-      .text(`Método de Pagamento: ${monthlyFee.method}`, { align: "center" });
-
-    if (monthlyFee.transactionId) {
-      doc.moveDown().text(`ID da Transação: ${monthlyFee.transactionId}`, {
-        align: "center",
+        valign: "top",
       });
+
+      doc
+        .fontSize(30)
+        .font("Helvetica-Bold")
+        .text("Cobra Kai Dojo", { align: "center", underline: true });
+
+      doc
+        .moveDown()
+        .fontSize(25)
+        .font("Helvetica-Bold")
+        .text(`Recibo de Pagamento`, { align: "center" });
+
+      doc
+        .moveDown()
+        .fontSize(18)
+        .font("Helvetica")
+        .text(`Recebemos de ${monthlyFee.user.name.toUpperCase()}`, {
+          align: "center",
+        })
+        .moveDown()
+        .text(`o valor de €${monthlyFee.amount.toFixed(2)}`, {
+          align: "center",
+        })
+        .moveDown()
+        .text(
+          `referente à mensalidade de ${new Date().toLocaleString('pt-BR', { month: 'long' })}/${new Date().getFullYear()}`,
+          { align: "center" }
+        );
+
+      // Adiciona data do pagamento
+      doc
+        .moveDown()
+        .moveDown()
+        .fontSize(12)
+        .text(
+          `Data do Pagamento: ${monthlyFee.paymentDate.toLocaleDateString('pt-BR')}`,
+          { align: "center" }
+        );
+
+      // Adiciona imagem da assinatura
+      doc.moveDown().moveDown();
+
+      // Verifica se a imagem da assinatura existe
+      const signaturePath = path.join(
+        __dirname,
+        "../assets/masterSignature.png"
+      );
+      if (fs.existsSync(signaturePath)) {
+        doc.image(signaturePath, {
+          fit: [150, 50],
+          align: "center",
+        });
+      } else {
+        // Se não houver imagem, usa linha de assinatura
+        doc.text(`_______________________________`, { align: "center" });
+      }
+
+      doc
+        .fontSize(12)
+        .text(instructorName, { align: "center" })
+        .text("Instrutor Responsável", { align: "center" });
+
+      // Finaliza o PDF
+      doc.end();
+
+      // Aguarda o stream terminar
+      writeStream.on("finish", () => {
+        resolve(filePath);
+      });
+
+      writeStream.on("error", (error) => {
+        reject(error);
+      });
+    } catch (error) {
+      reject(error);
     }
-
-    if (monthlyFee.notes) {
-      doc.moveDown().text(`Notas: ${monthlyFee.notes}`, { align: "center" });
-    }
-
-    // Espaço adicional antes da assinatura
-    doc.moveDown(3);
-
-    // Adiciona a imagem de assinatura fictícia
-    const signaturePath = path.join(__dirname, "../assets/masterSignature.png");
-    const signatureWidth = 150; // Largura da imagem de assinatura
-    const pageWidth = doc.page.width; // Largura da página
-    const signatureX = (pageWidth - signatureWidth) / 2; // Centraliza a imagem
-    const signatureY = doc.y; // Usa a posição atual da linha
-
-    doc.image(signaturePath, signatureX, signatureY, {
-      width: signatureWidth,
-      height: 50,
-    });
-
-    // Adiciona a linha de assinatura
-    doc
-      .moveDown(2)
-      .fontSize(16)
-      .text("_________________________", { align: "center" })
-      .text(`O Mestre: ${instructorName}`, { align: "center" })
-      .text("Cobra Kai Dojo", { align: "center" });
-
-    doc.end();
-
-    writeStream.on("finish", () => resolve(filePath));
-    writeStream.on("error", (error) => reject(error));
   });
 }
 

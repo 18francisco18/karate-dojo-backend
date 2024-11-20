@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
@@ -8,8 +9,8 @@ const http = require("http");
 const app = express();
 
 const corsOptions = {
-  origin: "http://localhost:3000", // Altere para a porta 3000, onde o frontend está rodando
-  credentials: true, // Permite o envio de cookies e headers de autenticação
+  origin: process.env.CORS_ORIGIN,
+  credentials: true,
 };
 
 // Importa o cron job para rodar automaticamente
@@ -22,18 +23,43 @@ app.use(cors(corsOptions));
 // Middleware para analisar cookies
 app.use(cookieParser());
 
-mongoose
-  .connect(config.db)
-  .then(() => console.log("Connection successful!"))
-  .catch((err) => console.error(err));
+// MongoDB connection options
+const mongooseOptions = {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  serverSelectionTimeoutMS: 5000,
+  retryWrites: true,
+};
+
+// MongoDB connection with retry logic
+const connectWithRetry = () => {
+  mongoose
+    .connect(config.db, mongooseOptions)
+    .then(() => {
+      console.log("MongoDB Connection successful!");
+    })
+    .catch((err) => {
+      console.error("MongoDB connection error:", err);
+      console.log("Retrying connection in 5 seconds...");
+      setTimeout(connectWithRetry, 5000);
+    });
+};
+
+connectWithRetry();
 
 let router = require("./router");
 app.use(router.init());
 
-const hostname = "127.0.0.1";
-const port = 5000;
+const hostname = process.env.HOST;
+const port = process.env.PORT || 5000;
 
 const server = http.Server(app);
+
+// Global error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send('Something broke!');
+});
 
 // Inicie o servidor
 server.listen(port, () => {

@@ -104,11 +104,10 @@ async function evaluateGraduation(id, score, comments, instructorId) {
   }
 
   try {
-    // Buscar a graduação e popular o estudante associado
-    const graduation = await Graduation.findById(id).populate({
-      path: "student",
-      select: "name belt", // Garantir que estamos buscando os campos corretos
-    });
+    // Buscar a graduação e popular os estudantes associados
+    const graduation = await Graduation.findById(id)
+      .populate('enrolledStudents', 'name belt email')
+      .populate('instructor', 'name');
 
     if (!graduation) {
       throw new Error("Graduação não encontrada");
@@ -119,42 +118,85 @@ async function evaluateGraduation(id, score, comments, instructorId) {
       throw new Error("Esta graduação já foi avaliada");
     }
 
-    const student = graduation.student;
-    if (!student) {
-      throw new Error("Nenhum estudante associado a esta graduação");
+    // Verificar se há estudantes inscritos
+    if (!graduation.enrolledStudents || graduation.enrolledStudents.length === 0) {
+      throw new Error("Não há estudantes inscritos nesta graduação");
     }
 
-    // Buscar o instrutor pelo ID para obter seu nome
-    const instructor = await Instructor.findById(instructorId);
-    if (!instructor) {
-      throw new Error("Instrutor não encontrado");
+    // Buscar o instrutor que está avaliando
+    const evaluatingInstructor = await Instructor.findById(instructorId);
+    if (!evaluatingInstructor) {
+      throw new Error("Instrutor avaliador não encontrado");
     }
 
-    const instructorName = instructor.name;
-
-    // Atualizar os dados da graduação
+    // Atualizar o status da graduação
     graduation.score = score;
     graduation.comments = comments;
-    graduation.evaluated = true; // Marca a graduação como avaliada
-    await graduation.save();
+    graduation.evaluated = true;
+    graduation.evaluationDate = new Date();
+    graduation.evaluatedBy = instructorId;
 
-    // Atualizar o cinto do aluno se a pontuação for suficiente
+    // Se a pontuação for >= 50, atualizar o cinto dos estudantes
     if (score >= 50) {
-      student.belt = graduation.level;
-      await student.save();
+      const beltLevels = ['branca', 'amarela', 'vermelha', 'laranja', 'verde', 'roxa', 'marrom', 'preta'];
+      const nextBeltIndex = beltLevels.indexOf(graduation.level);
+
+      // Atualizar o cinto de cada estudante e gerar diploma
+      const diplomaPaths = [];
+      for (const student of graduation.enrolledStudents) {
+        if (!student || !student.name) {
+          console.error('Estudante inválido:', student);
+          continue;
+        }
+
+        // Atualizar o cinto do estudante
+        await Student.findByIdAndUpdate(student._id, {
+          belt: graduation.level,
+          lastGraduationDate: new Date()
+        });
+
+        // Gerar diploma
+        const diplomaPath = await generateDiploma(
+          student.name, 
+          graduation.level, 
+          graduation.evaluationDate,
+          evaluatingInstructor.name
+        );
+        diplomaPaths.push(diplomaPath);
+
+        // Enviar email de parabéns com o diploma
+        const emailSubject = "Parabéns pela sua graduação!";
+        const emailBody = `
+          Olá ${student.name},
+
+          Parabéns por sua graduação para a faixa ${graduation.level}!
+          
+          Sua avaliação foi concluída com sucesso com uma pontuação de ${score}/100.
+          
+          Comentários do instrutor ${evaluatingInstructor.name}:
+          ${comments}
+          
+          Seu diploma está anexado a este email.
+          
+          Atenciosamente,
+          Academia de Karatê
+        `;
+
+        await sendEmail(student.email, emailSubject, emailBody, [diplomaPath]);
+      }
+
+      graduation.diplomaPaths = diplomaPaths;
     }
 
-    // Gerar o PDF do diploma após salvar a graduação
-    const diplomaPath = await generateDiploma(graduation, instructorName);
-    console.log("Diploma gerado em:", diplomaPath);
+    await graduation.save();
 
     return {
-      message: "Graduação avaliada com sucesso",
+      message: score >= 50 ? "Graduação avaliada com sucesso. Estudantes promovidos!" : "Graduação avaliada com reprovação",
       graduation,
-      diplomaPath, // Adicionando o caminho do diploma ao retorno
+      diplomaPaths: graduation.diplomaPaths
     };
   } catch (error) {
-    console.error("Erro ao avaliar graduação:", error.message);
+    console.error("Erro detalhado:", error);
     throw new Error("Erro ao avaliar graduação: " + error.message);
   }
 }
@@ -262,19 +304,57 @@ async function enrollStudentInGraduation(graduationId, studentId) {
       throw new Error("Graduação não encontrada");
     }
 
-    if (!graduation.canEnroll()) {
-      throw new Error("Não há vagas disponíveis para esta graduação");
+    // Verificar se ainda há vagas disponíveis
+    if (graduation.enrolledStudents.length >= graduation.availableSlots) {
+      throw new Error("Não há mais vagas disponíveis para esta graduação");
     }
 
+    const student = await Student.findById(studentId);
+    if (!student) {
+      throw new Error("Estudante não encontrado");
+    }
+
+    // Verificar se o estudante já está inscrito nesta graduação
+    if (graduation.enrolledStudents.includes(studentId)) {
+      throw new Error("Estudante já está inscrito nesta graduação");
+    }
+
+    // Verificar se o nível da graduação é apropriado para o estudante
+    const beltLevels = ['branca', 'amarela', 'vermelha', 'laranja', 'verde', 'roxa', 'marrom', 'preta'];
+    const studentBeltIndex = beltLevels.indexOf(student.belt);
+    const graduationLevelIndex = beltLevels.indexOf(graduation.level);
+
+    if (graduationLevelIndex !== studentBeltIndex + 1) {
+      throw new Error("O nível desta graduação não é apropriado para o estudante");
+    }
+
+    // Verificar se o estudante já está inscrito em outra graduação na mesma data
+    const graduationDate = new Date(graduation.date);
+    const existingGraduation = await Graduation.findOne({
+      enrolledStudents: studentId,
+      date: {
+        $gte: new Date(graduationDate.setHours(0, 0, 0, 0)),
+        $lt: new Date(graduationDate.setHours(23, 59, 59, 999))
+      }
+    });
+
+    if (existingGraduation) {
+      throw new Error("Estudante já está inscrito em outra graduação na mesma data");
+    }
+
+    // Inscrever o estudante
     graduation.enrolledStudents.push(studentId);
     await graduation.save();
 
+    // Enviar email de confirmação
+    await sendGraduationInvitationEmail(student.email, graduation);
+
     return {
-      message: "Estudante inscrito com sucesso na graduação",
-      graduation,
+      message: "Estudante inscrito com sucesso",
+      graduation
     };
   } catch (error) {
-    throw new Error(`Erro ao inscrever estudante: ${error.message}`);
+    throw new Error("Erro ao inscrever estudante: " + error.message);
   }
 }
 

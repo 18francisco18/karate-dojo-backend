@@ -9,8 +9,8 @@ const AuthInstructorRouter = () => {
 
   // Middleware
   router.use(cookieParser());
-  router.use(bodyParser.json({ limit: "100mb" }));
-  router.use(bodyParser.urlencoded({ limit: "100mb", extended: true }));
+  router.use(bodyParser.json({ limit: "10mb" }));
+  router.use(bodyParser.urlencoded({ limit: "10mb", extended: true }));
 
   // Rota para criar um novo instrutor (Admin apenas)
   router.post("/register", async (req, res) => {
@@ -43,18 +43,35 @@ const AuthInstructorRouter = () => {
       }
 
       const token = InstructorService.createToken(instructor);
-      // Adiciona o token aos cookies e envia a resposta
-      res
-        .cookie("authToken", token, {
-          httpOnly: true, // Torna o cookie inacessível ao JavaScript no navegador (por segurança)
-          secure: process.env.NODE_ENV === "production", // Define o cookie como seguro somente em produção
-          maxAge: 24 * 60 * 60 * 1000, // Expira em 1 dia
-        })
-        .status(200)
-        .json({ auth: true, message: "Login bem-sucedido" });
+      
+      // Configuração dos cookies com opções de segurança aprimoradas
+      res.cookie("token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 24 * 60 * 60 * 1000, // 1 dia
+        path: "/",
+      });
+
+      res.json({
+        auth: true,
+        instructor: {
+          id: instructor._id,
+          name: instructor.name,
+          email: instructor.email,
+          role: instructor.role,
+        },
+      });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      console.error("Erro no login:", error);
+      res.status(500).json({ error: "Erro interno do servidor" });
     }
+  });
+
+  // Rota para logout
+  router.post("/logout", (req, res) => {
+    res.clearCookie("token");
+    res.json({ auth: false, message: "Logout realizado com sucesso" });
   });
 
   // Rota para buscar todos os instrutores (Admin apenas)

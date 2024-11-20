@@ -9,53 +9,134 @@ const AuthStudentRouter = () => {
 
   // Middleware
   router.use(cookieParser());
-  router.use(bodyParser.json({ limit: "100mb" }));
-  router.use(bodyParser.urlencoded({ limit: "100mb", extended: true }));
+  router.use(bodyParser.json({ limit: "10mb" }));
+  router.use(bodyParser.urlencoded({ limit: "10mb", extended: true }));
 
   // Rota para registrar um novo estudante
   router.post("/register", async (req, res) => {
     try {
+      // Validação básica dos campos obrigatórios
+      const { name, email, password } = req.body;
+      if (!name || !email || !password) {
+        return res.status(400).json({ 
+          error: "Nome, email e senha são obrigatórios" 
+        });
+      }
+
       const newStudent = await StudentService.createStudent(req.body);
-      res.status(201).json(newStudent);
+      res.status(201).json({
+        message: "Estudante criado com sucesso",
+        student: {
+          id: newStudent._id,
+          name: newStudent.name,
+          email: newStudent.email,
+          belt: newStudent.belt
+        }
+      });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      console.error("Erro ao criar estudante:", error);
+      if (error.code === 11000) {
+        return res.status(400).json({ 
+          error: "Email já está em uso" 
+        });
+      }
+      res.status(500).json({ 
+        error: error.message || "Erro ao criar estudante" 
+      });
     }
   });
 
   // Rota para autenticação de estudante (login)
-  // Rota para autenticação de estudante (login)
   router.post("/login", async (req, res) => {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ error: "Email e senha são obrigatórios" });
-    }
     try {
-      const student = await StudentService.findStudentByEmail(email);
-      if (!student) {
-        return res.status(404).json({ error: "Estudante não encontrado" });
+      const { email, password } = req.body;
+      if (!email || !password) {
+        return res.status(400).json({ 
+          error: "Email e senha são obrigatórios" 
+        });
       }
 
-      const isMatch = await StudentService.comparePassword(
-        password,
-        student.password
-      );
+      const student = await StudentService.findStudentByEmail(email);
+      if (!student) {
+        return res.status(404).json({ 
+          error: "Estudante não encontrado" 
+        });
+      }
+
+      if (student.suspended) {
+        return res.status(403).json({ 
+          error: "Conta suspensa. Entre em contato com seu instrutor." 
+        });
+      }
+
+      const isMatch = await StudentService.comparePassword(password, student.password);
       if (!isMatch) {
-        return res.status(401).json({ error: "Senha incorreta" });
+        return res.status(401).json({ 
+          error: "Senha incorreta" 
+        });
       }
 
       const token = StudentService.createToken(student);
+      
+      // Configuração dos cookies com opções de segurança
+      res.cookie("token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 24 * 60 * 60 * 1000 // 24 horas
+      });
 
-      // Adiciona o token aos cookies e envia a resposta
-      res
-        .cookie("authToken", token, {
-          httpOnly: true, // Torna o cookie inacessível ao JavaScript no navegador (por segurança)
-          secure: process.env.NODE_ENV === "production", // Define o cookie como seguro somente em produção
-          maxAge: 24 * 60 * 60 * 1000, // Expira em 1 dia
-        })
-        .status(200)
-        .json({ auth: true, message: "Login bem-sucedido" });
+      res.status(200).json({
+        message: "Login realizado com sucesso",
+        student: {
+          id: student._id,
+          name: student.name,
+          email: student.email,
+          belt: student.belt
+        }
+      });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      console.error("Erro no login:", error);
+      res.status(500).json({ 
+        error: "Erro ao realizar login" 
+      });
+    }
+  });
+
+  // Rota para logout
+  router.post("/logout", (req, res) => {
+    res.clearCookie("token");
+    res.json({ 
+      auth: false, 
+      message: "Logout realizado com sucesso" 
+    });
+  });
+
+  // Rota para verificar autenticação
+  router.get("/check-auth", VerifyToken(), async (req, res) => {
+    try {
+      const student = await StudentService.findStudentById(req.userId);
+      if (!student) {
+        return res.status(404).json({ 
+          error: "Estudante não encontrado" 
+        });
+      }
+
+      res.json({
+        auth: true,
+        student: {
+          id: student._id,
+          name: student.name,
+          email: student.email,
+          belt: student.belt,
+          instructor: student.instructor
+        }
+      });
+    } catch (error) {
+      console.error("Erro ao verificar autenticação:", error);
+      res.status(500).json({ 
+        error: "Erro interno do servidor" 
+      });
     }
   });
 

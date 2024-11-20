@@ -25,6 +25,8 @@ let monthlyPlanSchema = new Schema({
       }
     },
   },
+}, {
+  collection: 'monthly_plans'
 });
 
 module.exports = mongoose.model("MonthlyPlan", monthlyPlanSchema);

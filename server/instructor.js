@@ -154,6 +154,19 @@ const InstructorRouter = () => {
     }
   });
 
+  // Rota para obter todas as mensalidades
+  router.get("/monthly-fees", VerifyToken(), async (req, res) => {
+    try {
+      const monthlyFees = await MonthlyFeeController.getAllMonthlyFees();
+      res.status(200).json({
+        message: "Mensalidades recuperadas com sucesso",
+        data: monthlyFees,
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Rota para remover suspensão de um aluno
   router.post(
     "/unsuspend-student/:studentId?",

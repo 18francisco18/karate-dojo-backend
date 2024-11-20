@@ -15,6 +15,7 @@ let monthlyFeeSchema = new Schema({
       return today;
     },
   },
+  paymentDate: { type: Date }, // Data em que o pagamento foi efetuado
   status: {
     type: String,
     enum: ["Pago", "Pendente", "Atrasado"],
@@ -27,6 +28,8 @@ let monthlyFeeSchema = new Schema({
   },
   transactionId: { type: String },
   notes: { type: String },
+}, {
+  collection: 'monthly_fees'
 });
 
 module.exports = mongoose.model("MonthlyFee", monthlyFeeSchema);
