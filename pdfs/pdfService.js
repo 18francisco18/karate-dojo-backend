@@ -87,7 +87,6 @@ async function generateDiploma(
       doc
         .fontSize(12)
         .text(instructorName, { align: "center" })
-        .text("Instrutor Avaliador", { align: "center" });
 
       // Finaliza o PDF
       doc.end();
@@ -191,7 +190,6 @@ async function generateReceipt(monthlyFee, instructorName) {
       doc
         .fontSize(12)
         .text(instructorName, { align: "center" })
-        .text("Instrutor Responsável", { align: "center" });
 
       // Finaliza o PDF
       doc.end();
