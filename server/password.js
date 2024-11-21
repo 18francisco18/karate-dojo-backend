@@ -1,16 +1,38 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
-const User = require("../models/user");
 const config = require("../config");
 const nodemailer = require("nodemailer");
 const bodyParser = require("body-parser");
-const bcryptjs = require("bcryptjs");
+const StudentService = require("../data/student/service");
+const InstructorService = require("../data/instructor/service");
 
 function RecoverPassword() {
   const router = express();
 
   router.use(bodyParser.json({ limit: "10mb" }));
   router.use(bodyParser.urlencoded({ limit: "10mb", extended: true }));
+
+  // Função para gerar código de 4 dígitos
+  function generateResetCode() {
+    return Math.floor(1000 + Math.random() * 9000).toString();
+  }
+
+  // Função para encontrar usuário pelo email
+  async function findUserByEmail(email) {
+    // Tenta encontrar primeiro como instrutor
+    const instructor = await InstructorService.findInstructorByEmail(email);
+    if (instructor) {
+      return { user: instructor, service: InstructorService, type: 'instructor' };
+    }
+
+    // Se não encontrar como instrutor, tenta como estudante
+    const student = await StudentService.findStudentByEmail(email);
+    if (student) {
+      return { user: student, service: StudentService, type: 'student' };
+    }
+
+    return null;
+  }
 
   router.post("/forgot-password", async (req, res) => {
     try {
@@ -20,25 +42,22 @@ function RecoverPassword() {
         return res.status(400).json({ error: "Email é obrigatório" });
       }
 
-      const user = await User.findOne({ email });
+      const userInfo = await findUserByEmail(email);
 
-      if (!user) {
+      if (!userInfo) {
         // Resposta vaga por segurança
         return res.status(200).json({ 
           message: "Se um usuário com este email existir, você receberá um email com instruções." 
         });
       }
 
-      const token = jwt.sign(
-        { email: user.email }, 
-        config.secret,
-        { expiresIn: "1h" }
-      );
+      // Gera código de 4 dígitos
+      const resetCode = generateResetCode();
 
-      // Atualiza o token de reset no usuário
-      user.passwordResetToken = token;
-      user.passwordResetExpires = Date.now() + 3600000; // 1 hora
-      await user.save();
+      // Atualiza o código de reset no usuário
+      userInfo.user.passwordResetToken = resetCode;
+      userInfo.user.passwordResetExpires = Date.now() + 3600000; // 1 hora
+      await userInfo.user.save();
 
       const transporter = nodemailer.createTransport({
         host: process.env.EMAIL_HOST,
@@ -52,15 +71,15 @@ function RecoverPassword() {
 
       const mailOptions = {
         from: process.env.EMAIL_FROM,
-        to: user.email,
+        to: userInfo.user.email,
         subject: "Recuperação de Senha - Karate Dojo",
-        text: `Você solicitou a recuperação de senha. Use o token a seguir para alterar sua senha: ${token}\n\nEste token expira em 1 hora.`,
+        text: `Você solicitou a recuperação de senha. Use o código a seguir para alterar sua senha: ${resetCode}\n\nEste código expira em 1 hora.`,
         html: `
           <h2>Recuperação de Senha</h2>
           <p>Você solicitou a recuperação de senha.</p>
-          <p>Use o token a seguir para alterar sua senha:</p>
-          <p><strong>${token}</strong></p>
-          <p>Este token expira em 1 hora.</p>
+          <p>Use o código a seguir para alterar sua senha:</p>
+          <p style="font-size: 24px; font-weight: bold; letter-spacing: 5px;">${resetCode}</p>
+          <p>Este código expira em 1 hora.</p>
           <p>Se você não solicitou esta recuperação, ignore este email.</p>
         `,
       };
@@ -78,53 +97,36 @@ function RecoverPassword() {
 
   router.post("/reset-password", async (req, res) => {
     try {
-      const { token, newPassword } = req.body;
+      const { email, code, newPassword } = req.body;
 
-      if (!token || !newPassword) {
+      if (!email || !code || !newPassword) {
         return res.status(400).json({ 
-          error: "Token e nova senha são obrigatórios" 
+          error: "Email, código e nova senha são obrigatórios" 
         });
       }
 
-      // Verifica o token e sua expiração
-      const decoded = jwt.verify(token, config.secret);
-      const user = await User.findOne({
-        email: decoded.email,
-        passwordResetToken: token,
-        passwordResetExpires: { $gt: Date.now() },
-      });
+      const userInfo = await findUserByEmail(email);
 
-      if (!user) {
+      if (!userInfo || 
+          userInfo.user.passwordResetToken !== code || 
+          userInfo.user.passwordResetExpires < Date.now()) {
         return res.status(400).json({ 
-          error: "Token inválido ou expirado" 
+          error: "Código inválido ou expirado" 
         });
       }
 
-      // Valida a força da senha
-      if (newPassword.length < 8) {
-        return res.status(400).json({ 
-          error: "A senha deve ter pelo menos 8 caracteres" 
-        });
-      }
-
-      // Hash da nova senha
-      const salt = await bcryptjs.genSalt(10);
-      const hashedPassword = await bcryptjs.hash(newPassword, salt);
-
-      // Atualiza a senha e limpa os campos de reset
-      user.password = hashedPassword;
-      user.passwordResetToken = undefined;
-      user.passwordResetExpires = undefined;
-      await user.save();
+      // Atualiza a senha usando o serviço apropriado
+      const hashPassword = await userInfo.service.createPassword(newPassword);
+      userInfo.user.password = hashPassword;
+      userInfo.user.passwordResetToken = undefined;
+      userInfo.user.passwordResetExpires = undefined;
+      await userInfo.user.save();
 
       res.status(200).json({ 
         message: "Senha alterada com sucesso" 
       });
     } catch (error) {
-      console.error("Erro na redefinição de senha:", error);
-      if (error.name === "JsonWebTokenError") {
-        return res.status(400).json({ error: "Token inválido" });
-      }
+      console.error("Erro ao redefinir senha:", error);
       res.status(500).json({ error: "Erro interno do servidor" });
     }
   });
