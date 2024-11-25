@@ -88,6 +88,7 @@ const AuthStudentRouter = () => {
 
       res.status(200).json({
         message: "Login realizado com sucesso",
+        token: token,
         student: {
           id: student._id,
           name: student.name,

@@ -55,6 +55,7 @@ const AuthInstructorRouter = () => {
 
       res.json({
         auth: true,
+        token: token,
         instructor: {
           id: instructor._id,
           name: instructor.name,
