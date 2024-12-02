@@ -9,8 +9,10 @@ const http = require("http");
 const app = express();
 
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN,
+  origin: 'http://localhost:3000',
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 };
 
 // Importa o cron job para rodar automaticamente
