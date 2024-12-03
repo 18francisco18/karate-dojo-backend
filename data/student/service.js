@@ -1,4 +1,4 @@
-const bcrypt = require("bcryptjs");
+const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const qrCode = require("qrcode");
 const { Student } = require("../../models/user");
@@ -18,6 +18,7 @@ function StudentService() {
     createToken,
     verifyToken,
     generateQRCodeWithCredentials,
+    updatePassword
   };
 
   async function validateStudentData(studentData) {
@@ -224,6 +225,35 @@ function StudentService() {
       throw err;
     }
   }
+
+  async function updatePassword(studentId, newHashedPassword) {
+    try {
+      console.log("Updating student password for ID:", studentId);
+      const student = await findStudentById(studentId);
+      
+      if (!student) {
+        console.error('Estudante não encontrado:', studentId);
+        throw new Error('Estudante não encontrado');
+      }
+
+      console.log("Student found, updating password");
+      student.password = newHashedPassword;
+      const updatedStudent = await student.save();
+
+      console.log("Password updated successfully for student:", updatedStudent._id);
+      return updatedStudent;
+    } catch (error) {
+      console.error('Erro ao atualizar senha do estudante:', {
+        studentId,
+        errorName: error.name,
+        errorMessage: error.message,
+        stack: error.stack
+      });
+      throw error;
+    }
+  }
+
+  service.updatePassword = updatePassword;
 
   return service;
 }

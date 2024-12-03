@@ -33,24 +33,32 @@ const mongooseOptions = {
   retryWrites: true,
 };
 
+const RecoverPassword = require("./server/password");
+
 // MongoDB connection with retry logic
 const connectWithRetry = () => {
   mongoose
     .connect(config.db, mongooseOptions)
     .then(() => {
       console.log("MongoDB Connection successful!");
+      
+      // Add password recovery routes
+      app.use("/", RecoverPassword());
+      
+      let router = require("./router");
+      app.use(router.init());
     })
     .catch((err) => {
-      console.error("MongoDB connection error:", err);
+      console.error("MongoDB connection error FULL:", err);
+      console.error("Error name:", err.name);
+      console.error("Error message:", err.message);
+      console.error("Error stack:", err.stack);
       console.log("Retrying connection in 5 seconds...");
       setTimeout(connectWithRetry, 5000);
     });
 };
 
 connectWithRetry();
-
-let router = require("./router");
-app.use(router.init());
 
 const hostname = process.env.HOST;
 const port = process.env.PORT || 5000;

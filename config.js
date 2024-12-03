@@ -7,8 +7,4 @@ const config = {
   saltRounds: parseInt(process.env.SALT_ROUNDS),
 };
 
-//password: 3xq6uz1TCCtue8lf
-
 module.exports = config;
-
-  
