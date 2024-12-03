@@ -1,4 +1,4 @@
-const bcrypt = require("bcryptjs");
+const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const config = require("../../config");
 const { Instructor } = require("../../models/user");
@@ -18,6 +18,7 @@ function InstructorService() {
     verifyToken,
     createToken,
     generateQRCodeWithCredentials,
+    updatePassword
   };
 
   async function validateInstructorData(instructorData) {
@@ -204,6 +205,35 @@ function InstructorService() {
       throw new Error("Erro ao gerar QR Code");
     }
   }
+
+  async function updatePassword(instructorId, newHashedPassword) {
+    try {
+      console.log("Updating instructor password for ID:", instructorId);
+      const instructor = await findInstructorById(instructorId);
+      
+      if (!instructor) {
+        console.error('Instrutor não encontrado:', instructorId);
+        throw new Error('Instrutor não encontrado');
+      }
+
+      console.log("Instructor found, updating password");
+      instructor.password = newHashedPassword;
+      const updatedInstructor = await instructor.save();
+
+      console.log("Password updated successfully for instructor:", updatedInstructor._id);
+      return updatedInstructor;
+    } catch (error) {
+      console.error('Erro ao atualizar senha do instrutor:', {
+        instructorId,
+        errorName: error.name,
+        errorMessage: error.message,
+        stack: error.stack
+      });
+      throw error;
+    }
+  }
+
+  service.updatePassword = updatePassword;
 
   return service;
 }
