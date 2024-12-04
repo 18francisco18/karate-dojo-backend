@@ -4,11 +4,10 @@ const Schema = mongoose.Schema;
 
 const monthlyPlanSchema = new Schema(
   {
-    user: { 
+    students: [{ 
       type: Schema.Types.ObjectId, 
-      ref: "Student",
-      required: false // Agora é opcional para permitir planos template
-    },
+      ref: "Student"
+    }],
     name: {
       type: String,
       required: true,
@@ -32,7 +31,7 @@ const monthlyPlanSchema = new Schema(
   },
   {
     timestamps: true,
-    collection: "monthly_plans", // Corrigido para monthly_plans
+    collection: "monthly_plans",
   }
 );
 

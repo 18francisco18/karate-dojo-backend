@@ -76,7 +76,7 @@ const AuthInstructorRouter = () => {
   });
 
   // Rota para buscar todos os instrutores (Admin apenas)
-  router.get("/instructors", VerifyToken("Admin"), async (req, res) => {
+  router.get("/instructors", async (req, res) => {
     try {
       const instructors = await InstructorService.findAllInstructors();
       res.status(200).json(instructors);
@@ -86,7 +86,7 @@ const AuthInstructorRouter = () => {
   });
 
   // Rota para buscar um instrutor pelo ID (Admin apenas)
-  router.get("/instructor/:id", VerifyToken("Admin"), async (req, res) => {
+  router.get("/instructor/:id", async (req, res) => {
     try {
       const instructor = await InstructorService.findInstructorById(
         req.params.id

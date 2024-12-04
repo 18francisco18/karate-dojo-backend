@@ -5,10 +5,12 @@ const MonthlyFee = require("../../models/monthlyFee");
 // Obter todos os planos
 async function getAll() {
   try {
-    return [
+    // Lista de planos pré-definidos
+    const defaultPlans = [
       {
+        _id: "673e4d0b39b8e46bb2fe8da2",
         name: "Basic",
-        price: 29.99,
+        price: 50,
         graduationScopes: ["internal"],
         description: "Perfeito para começar sua jornada no karate",
         features: [
@@ -19,8 +21,9 @@ async function getAll() {
         ]
       },
       {
+        _id: "673e4d0639b8e46bb2fe8da0",
         name: "Standard",
-        price: 49.99,
+        price: 100,
         graduationScopes: ["internal", "regional"],
         description: "Para alunos dedicados que buscam evolução constante",
         features: [
@@ -31,8 +34,9 @@ async function getAll() {
         ]
       },
       {
+        _id: "673e4ccc39b8e46bb2fe8d9d",
         name: "Premium",
-        price: 79.99,
+        price: 150,
         graduationScopes: ["internal", "regional", "national"],
         description: "Treinamento intensivo para verdadeiros guerreiros",
         features: [
@@ -43,7 +47,28 @@ async function getAll() {
         ]
       }
     ];
+
+    // Para cada plano pré-definido, atualizar ou criar no MongoDB
+    for (const planData of defaultPlans) {
+      await MonthlyPlan.findOneAndUpdate(
+        { _id: planData._id },
+        {
+          $set: {
+            name: planData.name,
+            price: planData.price,
+            graduationScopes: planData.graduationScopes,
+            description: planData.description,
+            features: planData.features
+          }
+        },
+        { upsert: true, new: true }
+      );
+    }
+
+    // Retornar os planos pré-definidos
+    return defaultPlans;
   } catch (error) {
+    console.error('Erro em getAll:', error);
     throw new Error("Erro ao obter planos: " + error.message);
   }
 }
@@ -81,63 +106,60 @@ async function createPlan(name, price, graduationScopes) {
   }
 }
 
-// Associar um plano a um estudante
+// Associar plano ao estudante
 async function associatePlanToStudent(planId, studentId) {
   try {
+    console.log("Iniciando associação de plano...");
+    console.log("PlanId:", planId);
+    console.log("StudentId:", studentId);
+
     // Verificar se o estudante existe
     const student = await Student.findById(studentId);
     if (!student) {
       throw new Error("Estudante não encontrado");
     }
+    console.log("Estudante encontrado:", student);
 
     // Verificar se o estudante já tem um plano ativo
     if (student.monthlyPlan) {
       throw new Error("Você já tem um plano ativo. Por favor, cancele o plano atual antes de escolher um novo.");
     }
 
-    // Obter o plano template
-    const templatePlan = await MonthlyPlan.findById(planId);
-    if (!templatePlan) {
+    // Primeiro buscar o plano atualizado
+    await getAll();
+
+    // Agora buscar o plano específico
+    const plan = await MonthlyPlan.findById(planId);
+    if (!plan) {
       throw new Error("Plano não encontrado");
     }
-
-    // Verificar se é um plano template (sem usuário associado)
-    if (templatePlan.user) {
-      throw new Error("Plano inválido. Por favor, escolha um plano da lista de planos disponíveis.");
-    }
-
-    // Criar uma cópia do plano para o estudante
-    const studentPlan = new MonthlyPlan({
-      user: studentId,
-      name: templatePlan.name,
-      price: templatePlan.price,
-      graduationScopes: templatePlan.graduationScopes
-    });
-
-    await studentPlan.save();
+    console.log("Plano encontrado:", plan);
 
     // Atualizar o plano do estudante
-    student.monthlyPlan = studentPlan._id;
+    student.monthlyPlan = plan._id;
     await student.save();
+
+    // Adicionar estudante à lista de estudantes do plano
+    if (!plan.students.includes(student._id)) {
+      plan.students.push(student._id);
+      await plan.save();
+    }
 
     // Criar a mensalidade para o mês atual
     const now = new Date();
     const monthlyFee = new MonthlyFee({
       student: studentId,
-      plan: studentPlan._id,
-      amount: templatePlan.price,
+      plan: planId,
+      amount: plan.price,
       dueDate: new Date(now.getFullYear(), now.getMonth() + 1, 5), // Vence no dia 5 do próximo mês
-      status: "pending"
+      status: "pending",
     });
 
     await monthlyFee.save();
 
-    return {
-      message: "Plano associado com sucesso",
-      plan: studentPlan,
-      monthlyFee
-    };
+    return { message: "Plano associado com sucesso", plan };
   } catch (error) {
+    console.warn("Erro completo:", error);
     throw new Error("Erro ao associar plano: " + error.message);
   }
 }
@@ -152,12 +174,39 @@ async function getStudentPlans(studentId) {
   }
 }
 
-// Obter plano ativo de um estudante
+// Obter plano ativo do estudante
 async function getActivePlan(studentId) {
   try {
-    const plan = await MonthlyPlan.findOne({ user: studentId }).sort({ createdAt: -1 });
+    console.log('Buscando plano para estudante:', studentId);
+
+    // Primeiro buscar o ID do plano do estudante
+    const student = await Student.findById(studentId)
+      .select('monthlyPlan')
+      .lean();
+
+    console.log('Estudante encontrado:', student);
+
+    if (!student || !student.monthlyPlan) {
+      console.log('Estudante não tem plano associado');
+      return null;
+    }
+
+    // Buscar o plano da lista de planos pré-definidos
+    const plans = await getAll();
+    console.log('Planos disponíveis:', plans);
+    console.log('ID do plano do estudante:', student.monthlyPlan);
+
+    const plan = plans.find(p => p._id.toString() === student.monthlyPlan.toString());
+    console.log('Plano encontrado:', plan);
+
+    if (!plan) {
+      console.log('Plano não encontrado');
+      return null;
+    }
+
     return plan;
   } catch (error) {
+    console.error("Erro ao buscar plano ativo:", error);
     throw new Error("Erro ao buscar plano ativo: " + error.message);
   }
 }
@@ -211,40 +260,24 @@ async function deletePlan(id) {
 // Cancelar plano ativo de um estudante
 async function cancelActivePlan(studentId) {
   try {
-    // Buscar estudante com o plano atual
-    const student = await Student.findById(studentId).populate('monthlyPlan');
-    if (!student) {
-      throw new Error("Estudante não encontrado");
-    }
-
-    // Verificar se tem plano ativo
-    if (!student.monthlyPlan) {
+    const student = await Student.findById(studentId);
+    if (!student || !student.monthlyPlan) {
       throw new Error("Estudante não possui plano ativo para cancelar");
     }
 
-    // Buscar mensalidade pendente
-    const pendingFee = await MonthlyFee.findOne({
-      student: studentId,
-      status: "pending"
-    });
+    const planId = student.monthlyPlan;
 
-    if (pendingFee) {
-      pendingFee.status = "cancelled";
-      await pendingFee.save();
-    }
+    // Remover estudante do array de estudantes do plano
+    await MonthlyPlan.findByIdAndUpdate(
+      planId,
+      { $pull: { students: studentId } }
+    );
 
     // Remover referência do plano no estudante
     student.monthlyPlan = null;
     await student.save();
 
-    return {
-      message: "Plano cancelado com sucesso",
-      student: {
-        id: student._id,
-        name: student.name,
-        email: student.email
-      }
-    };
+    return { message: "Plano cancelado com sucesso" };
   } catch (error) {
     throw new Error("Erro ao cancelar plano: " + error.message);
   }
