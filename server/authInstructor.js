@@ -71,8 +71,35 @@ const AuthInstructorRouter = () => {
 
   // Rota para logout
   router.post("/logout", (req, res) => {
+    console.log("Logout realizado com sucesso");
     res.clearCookie("token");
     res.json({ auth: false, message: "Logout realizado com sucesso" });
+  });
+
+  // Rota para verificar autenticação
+  router.get("/check-auth", VerifyToken(), async (req, res) => {
+    try {
+      const instructor = await InstructorService.findInstructorById(req.userId);
+      if (!instructor) {
+        return res.status(404).json({ 
+          error: "Instrutor não encontrado" 
+        });
+      }
+
+      res.json({
+        auth: true,
+        instructor: {
+          id: instructor._id,
+          name: instructor.name,
+          email: instructor.email
+        }
+      });
+    } catch (error) {
+      console.error("Erro ao verificar autenticação:", error);
+      res.status(500).json({ 
+        error: "Erro interno do servidor" 
+      });
+    }
   });
 
   // Rota para buscar todos os instrutores (Admin apenas)
