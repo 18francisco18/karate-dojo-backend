@@ -114,7 +114,7 @@ const StudentRouter = () => {
 
   router.get(
     "/graduations",
-    VerifyToken(),
+    VerifyToken("Student"),
     checkSuspended,
     async (req, res) => {
       try {
