@@ -114,7 +114,7 @@ const StudentRouter = () => {
 
   router.get(
     "/graduations",
-    VerifyToken("Student"),
+    VerifyToken(),
     checkSuspended,
     async (req, res) => {
       try {
@@ -138,6 +138,7 @@ const StudentRouter = () => {
         };
         const pageNumber = parseInt(page) || 1;
         const limitNumber = parseInt(limit) || 10;
+
 
         const result = await GraduationController.getAllGraduations(
           filters,
