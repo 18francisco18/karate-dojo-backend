@@ -15,6 +15,16 @@ const InstructorRouter = () => {
   router.use(bodyParser.json({ limit: "100mb" }));
   router.use(bodyParser.urlencoded({ limit: "100mb", extended: true }));
 
+  // Rota para listar todos os instrutores
+  router.get("",  async (req, res) => {
+    try {
+      const instructors = await InstructorController.getInstructors();
+      res.status(200).json(instructors);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Rota para obter um instrutor pelo ID
   router.get("/instructor/:id", VerifyToken, async (req, res) => {
     const { id } = req.params;
