@@ -139,7 +139,6 @@ const StudentRouter = () => {
         const pageNumber = parseInt(page) || 1;
         const limitNumber = parseInt(limit) || 10;
 
-
         const result = await GraduationController.getAllGraduations(
           filters,
           sort,
@@ -240,6 +239,31 @@ const StudentRouter = () => {
         res.status(200).json(result);
       } catch (error) {
         console.error("Erro ao inscrever aluno na graduação:", error.message);
+        res.status(500).json({ error: error.message });
+      }
+    }
+  );
+
+  // Rota para cancelar inscrição em uma graduação
+  router.post(
+    "/graduations/:id/cancel",
+    VerifyToken(),
+    checkSuspended,
+    async (req, res) => {
+      try {
+        const { id } = req.params;
+        const studentId = req.userId;
+
+        if (!studentId) {
+          return res
+            .status(400)
+            .json({ error: "ID do aluno não encontrado no token." });
+        }
+
+        const result = await GraduationController.unenrollStudentFromGraduation(id, studentId);
+        res.status(200).json(result);
+      } catch (error) {
+        console.error("Erro ao cancelar inscrição na graduação:", error.message);
         res.status(500).json({ error: error.message });
       }
     }

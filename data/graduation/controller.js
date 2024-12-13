@@ -408,12 +408,14 @@ async function unenrollStudentFromGraduation(graduationId, studentId) {
     }
 
     // Check if student is enrolled
-    if (!graduation.enrolledStudents.includes(studentId)) {
+    const studentIndex = graduation.enrolledStudents.findIndex(id => id.toString() === studentId.toString());
+    if (studentIndex === -1) {
       throw new Error('Estudante não está inscrito nesta graduação');
     }
 
     // Remove student from enrolled students
-    graduation.enrolledStudents = graduation.enrolledStudents.filter(id => id.toString() !== studentId.toString());
+    graduation.enrolledStudents.splice(studentIndex, 1);
+    graduation.availableSlots += 1; // Incrementa o número de vagas disponíveis
     
     // Save the updated graduation
     const updatedGraduation = await graduation.save();
