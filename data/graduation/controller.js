@@ -343,7 +343,7 @@ async function enrollStudentInGraduation(graduationId, studentId) {
     }
 
     // Verificar se há vagas disponíveis
-    if (graduation.enrolledStudents.length >= graduation.availableSlots) {
+    if (graduation.availableSlots <= 0) {
       throw new Error('Não há vagas disponíveis nesta graduação');
     }
 
@@ -383,14 +383,19 @@ async function enrollStudentInGraduation(graduationId, studentId) {
       );
     }
 
-    // Adicionar estudante à lista de inscritos
+    // Atualizar a graduação em uma única operação atômica
+    const vagasAntes = graduation.availableSlots;
+    graduation.availableSlots = vagasAntes - 1;
     graduation.enrolledStudents.push(studentId);
-    
-    // Salvar a graduação atualizada
-    const updatedGraduation = await graduation.save();
-    console.log('Estudante inscrito com sucesso. Graduação atualizada:', updatedGraduation);
-    
-    return updatedGraduation;
+    await graduation.save();
+
+    console.log('Atualizando vagas:', {
+      vagasAntes: vagasAntes,
+      vagasDepois: graduation.availableSlots,
+      estudantesInscritos: graduation.enrolledStudents.length
+    });
+
+    return graduation;
   } catch (error) {
     console.error('Erro em enrollStudentInGraduation:', error);
     throw error;
