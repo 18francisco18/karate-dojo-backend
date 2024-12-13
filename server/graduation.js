@@ -13,6 +13,9 @@ const GraduationRouter = () => {
   router.post("/create", verifyTokenMiddleware("Admin"), async (req, res) => {
     try {
       const { level, instructorId, location, date, availableSlots, scope } = req.body;
+      if (!level || !instructorId || !location || !date || !availableSlots || !scope) {
+        return res.status(400).json({ message: "Todos os campos são obrigatórios" });
+      }
       const graduation = await GraduationController.createGraduation(
         level,
         instructorId,
@@ -23,6 +26,7 @@ const GraduationRouter = () => {
       );
       res.status(201).json(graduation);
     } catch (error) {
+      console.error("Erro ao criar graduação:", error);
       res.status(500).json({ message: error.message });
     }
   });
@@ -36,7 +40,9 @@ const GraduationRouter = () => {
         const { score, comments } = req.body;
         const { id } = req.params;
         const instructorId = req.userId;
-
+        if (!score || !comments) {
+          return res.status(400).json({ message: "Nota e comentários são obrigatórios" });
+        }
         const result = await GraduationController.evaluateGraduation(
           id,
           score,
@@ -46,7 +52,7 @@ const GraduationRouter = () => {
 
         res.status(200).json(result);
       } catch (error) {
-        console.error("Erro ao avaliar graduação:", error.message);
+        console.error("Erro ao avaliar graduação:", error);
         if (error.message.includes("já foi avaliada")) {
           res.status(400).json({ message: "Esta graduação já foi avaliada." });
         } else {
@@ -59,10 +65,14 @@ const GraduationRouter = () => {
   // 3. Rota para obter todas as graduações de um usuário (rota protegida)
   router.get("/user/:userId?", verifyTokenMiddleware(), async (req, res) => {
     const userId = req.params.userId || req.body.userId;
+    if (!userId) {
+      return res.status(400).json({ message: "UserId é obrigatório" });
+    }
     try {
       const graduations = await GraduationController.getUserGraduations(userId);
       res.status(200).json(graduations);
     } catch (error) {
+      console.error("Erro ao obter graduações do usuário:", error);
       res.status(500).json({ message: error.message });
     }
   });
@@ -73,8 +83,12 @@ const GraduationRouter = () => {
       const graduation = await GraduationController.getGraduationById(
         req.params.id
       );
+      if (!graduation) {
+        return res.status(404).json({ message: "Graduação não encontrada" });
+      }
       res.status(200).json(graduation);
     } catch (error) {
+      console.error("Erro ao obter graduação:", error);
       res.status(500).json({ message: error.message });
     }
   });
@@ -86,6 +100,9 @@ const GraduationRouter = () => {
     async (req, res) => {
       try {
         const { score, comment, certificateUrl } = req.body;
+        if (!score && !comment && !certificateUrl) {
+          return res.status(400).json({ message: "Pelo menos um campo é obrigatório" });
+        }
         const updatedGraduation = await GraduationController.updateGraduation(
           req.params.id,
           score,
@@ -94,6 +111,7 @@ const GraduationRouter = () => {
         );
         res.status(200).json(updatedGraduation);
       } catch (error) {
+        console.error("Erro ao atualizar graduação:", error);
         res.status(500).json({ message: error.message });
       }
     }
@@ -108,8 +126,12 @@ const GraduationRouter = () => {
         const result = await GraduationController.deleteGraduation(
           req.params.id
         );
+        if (!result) {
+          return res.status(404).json({ message: "Graduação não encontrada" });
+        }
         res.status(200).json(result);
       } catch (error) {
+        console.error("Erro ao deletar graduação:", error);
         res.status(500).json({ message: error.message });
       }
     }
@@ -119,15 +141,57 @@ const GraduationRouter = () => {
   router.post("/enroll", verifyTokenMiddleware(), async (req, res) => {
     try {
       const { graduationId, studentId } = req.body;
-      const result = await GraduationController.enrollStudentInGraduation(graduationId, studentId);
-      res.status(200).json(result);
-    } catch (error) {
-      // Se o erro for relacionado a restrições de plano ou outras validações
-      if (error.message.includes("plano") || error.message.includes("não permite")) {
-        res.status(403).json({ message: error.message });
-      } else {
-        res.status(500).json({ message: error.message });
+      console.log('Recebida requisição de inscrição:', { graduationId, studentId });
+      
+      if (!graduationId || !studentId) {
+        return res.status(400).json({ 
+          message: "GraduationId e StudentId são obrigatórios",
+          received: { graduationId, studentId }
+        });
       }
+
+      const result = await GraduationController.enrollStudentInGraduation(graduationId, studentId);
+      console.log('Resultado da inscrição:', result);
+      
+      res.status(200).json({ 
+        message: "Inscrição realizada com sucesso",
+        graduation: result 
+      });
+    } catch (error) {
+      console.error('Erro na rota de inscrição:', error);
+      res.status(500).json({ 
+        message: error.message || "Erro ao realizar inscrição",
+        error: error.toString()
+      });
+    }
+  });
+
+  // 8. Rota para cancelar inscrição em uma graduação
+  router.post("/unenroll", verifyTokenMiddleware(), async (req, res) => {
+    try {
+      const { graduationId, studentId } = req.body;
+      console.log('Received unenroll request:', { graduationId, studentId });
+      
+      if (!graduationId || !studentId) {
+        return res.status(400).json({ 
+          message: "GraduationId e StudentId são obrigatórios",
+          received: { graduationId, studentId }
+        });
+      }
+
+      const result = await GraduationController.unenrollStudentFromGraduation(graduationId, studentId);
+      console.log('Unenroll result:', result);
+      
+      res.status(200).json({ 
+        message: "Inscrição cancelada com sucesso",
+        graduation: result 
+      });
+    } catch (error) {
+      console.error('Error in unenroll route:', error);
+      res.status(500).json({ 
+        message: error.message || "Erro ao cancelar inscrição",
+        error: error.toString()
+      });
     }
   });
 
@@ -164,6 +228,7 @@ const GraduationRouter = () => {
 
       res.status(200).json(graduations);
     } catch (error) {
+      console.error("Erro ao listar graduações:", error);
       res.status(500).json({ message: error.message });
     }
   });

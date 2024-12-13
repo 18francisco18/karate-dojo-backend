@@ -13,6 +13,7 @@ const GraduationController = {
   updateGraduation,
   deleteGraduation,
   enrollStudentInGraduation,
+  unenrollStudentFromGraduation,
   sendGraduationInvitationEmail,
 };
 
@@ -301,107 +302,108 @@ async function deleteGraduation(id) {
 // 7. Inscrever Estudante em uma Graduação
 async function enrollStudentInGraduation(graduationId, studentId) {
   try {
+    console.log('Tentando inscrever estudante:', { graduationId, studentId });
+    
     // Buscar a graduação
     const graduation = await Graduation.findById(graduationId);
     if (!graduation) {
-      throw new Error("Graduação não encontrada");
+      throw new Error('Graduação não encontrada');
     }
 
-    // Buscar o estudante com seu plano
-    const student = await Student.findById(studentId).populate('monthlyPlan');
+    // Buscar o estudante
+    const student = await Student.findById(studentId);
     if (!student) {
-      throw new Error("Estudante não encontrado");
+      throw new Error('Estudante não encontrado');
     }
 
-    // Verificar se o estudante tem plano ativo
-    if (!student.monthlyPlan) {
-      throw new Error("Estudante não possui plano ativo");
-    }
-
-    // Verificar se o estudante tem mensalidade em atraso
-    const lateFee = await MonthlyFee.findOne({
-      student: studentId,
-      status: "late"
+    // Verificar se o estudante já está inscrito em alguma graduação
+    const existingEnrollment = await Graduation.findOne({
+      enrolledStudents: studentId,
+      _id: { $ne: graduationId } // Excluir a graduação atual da busca
     });
 
-    if (lateFee) {
-      throw new Error("Estudante possui mensalidade em atraso");
+    if (existingEnrollment) {
+      throw new Error('Você já está inscrito em outra graduação. Cancele a inscrição atual antes de se inscrever em uma nova.');
     }
 
-    // Verificar se o escopo da graduação está dentro do plano do estudante
-    const planScopes = student.monthlyPlan.graduationScopes;
-    const graduationScope = graduation.scope;
-
-    // Definir hierarquia de scopes
-    const scopeHierarchy = {
-      'internal': 1,
-      'regional': 2,
-      'national': 3
-    };
-
-    // Verificar se o plano permite o escopo da graduação
-    const maxPlanScope = Math.max(...planScopes.map(scope => scopeHierarchy[scope] || 0));
-    const requiredScope = scopeHierarchy[graduationScope] || 0;
-
-    if (maxPlanScope < requiredScope) {
-      throw new Error(
-        `Seu plano ${student.monthlyPlan.name} não permite participar de graduações do tipo ${graduationScope}. ` +
-        `Seu plano atual permite apenas: ${planScopes.join(', ')}`
-      );
+    // Verificar se o estudante já está inscrito nesta graduação
+    if (graduation.enrolledStudents.includes(studentId)) {
+      throw new Error('Estudante já está inscrito nesta graduação');
     }
 
     // Verificar se há vagas disponíveis
     if (graduation.enrolledStudents.length >= graduation.availableSlots) {
-      throw new Error("Não há vagas disponíveis para esta graduação");
+      throw new Error('Não há vagas disponíveis nesta graduação');
     }
 
-    // Verificar se o estudante já está inscrito
-    if (graduation.enrolledStudents.includes(studentId)) {
-      throw new Error("Estudante já está inscrito nesta graduação");
+    // Array com a ordem das faixas
+    const beltLevels = ['branca', 'amarela', 'vermelha', 'laranja', 'verde', 'roxa', 'marrom', 'preta'];
+    
+    // Obter os índices das faixas
+    const currentBeltIndex = beltLevels.indexOf(student.belt.toLowerCase());
+    const graduationBeltIndex = beltLevels.indexOf(graduation.level.toLowerCase());
+
+    console.log('Verificando faixas:', {
+      studentBelt: student.belt,
+      graduationLevel: graduation.level,
+      currentBeltIndex,
+      graduationBeltIndex
+    });
+
+    // Verificar se as faixas são válidas
+    if (currentBeltIndex === -1 || graduationBeltIndex === -1) {
+      throw new Error('Faixa inválida detectada');
     }
 
-    // Verificar se a faixa do estudante é compatível
-    const beltLevels = [
-      "branco",
-      "amarelo",
-      "laranja",
-      "verde",
-      "azul",
-      "roxo",
-      "castanho",
-      "preto"
-    ];
-
-    const studentBeltIndex = beltLevels.indexOf(student.belt);
-    const graduationBeltIndex = beltLevels.indexOf(graduation.level);
-
-    if (studentBeltIndex === -1 || graduationBeltIndex === -1) {
-      throw new Error("Faixa inválida");
-    }
-
-    if (studentBeltIndex !== graduationBeltIndex - 1) {
+    // Verificar se a graduação é para a próxima faixa
+    if (graduationBeltIndex !== currentBeltIndex + 1) {
+      const nextBelt = beltLevels[currentBeltIndex + 1];
       throw new Error(
-        `Faixa atual (${student.belt}) não é adequada para esta graduação (${graduation.level}). ` +
-        `Você só pode participar de graduações para o próximo nível.`
+        `Com a faixa ${student.belt}, você só pode se inscrever em graduações para faixa ${nextBelt}. ` +
+        `Esta graduação é para faixa ${graduation.level}.`
       );
     }
 
-    // Adicionar estudante à graduação
+    // Adicionar estudante à lista de inscritos
     graduation.enrolledStudents.push(studentId);
-    await graduation.save();
-
-    return {
-      message: "Inscrição realizada com sucesso",
-      graduation: {
-        id: graduation._id,
-        level: graduation.level,
-        date: graduation.date,
-        scope: graduation.scope,
-        location: graduation.location
-      }
-    };
+    
+    // Salvar a graduação atualizada
+    const updatedGraduation = await graduation.save();
+    console.log('Estudante inscrito com sucesso. Graduação atualizada:', updatedGraduation);
+    
+    return updatedGraduation;
   } catch (error) {
-    throw new Error("Erro ao inscrever estudante: " + error.message);
+    console.error('Erro em enrollStudentInGraduation:', error);
+    throw error;
+  }
+}
+
+// Cancelar inscrição de um estudante em uma graduação
+async function unenrollStudentFromGraduation(graduationId, studentId) {
+  try {
+    console.log('Attempting to unenroll student:', { graduationId, studentId });
+    
+    const graduation = await Graduation.findById(graduationId);
+    if (!graduation) {
+      throw new Error('Graduação não encontrada');
+    }
+
+    // Check if student is enrolled
+    if (!graduation.enrolledStudents.includes(studentId)) {
+      throw new Error('Estudante não está inscrito nesta graduação');
+    }
+
+    // Remove student from enrolled students
+    graduation.enrolledStudents = graduation.enrolledStudents.filter(id => id.toString() !== studentId.toString());
+    
+    // Save the updated graduation
+    const updatedGraduation = await graduation.save();
+    console.log('Successfully unenrolled student. Updated graduation:', updatedGraduation);
+    
+    return updatedGraduation;
+  } catch (error) {
+    console.error('Error in unenrollStudentFromGraduation:', error);
+    throw error;
   }
 }
 
