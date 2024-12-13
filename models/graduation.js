@@ -9,12 +9,12 @@ let graduationSchema = new Schema({
     enum: [
       "branco",
       "amarelo",
+      "azul",
       "laranja",
       "verde",
-      "azul",
       "roxo",
       "castanho",
-      "preto",
+      "preto"
     ],
     required: true,
   },

@@ -79,12 +79,12 @@ const studentSchema = new Schema({
     enum: [
       "branco",
       "amarelo",
+      "azul",
       "laranja",
       "verde",
-      "azul",
       "roxo",
       "castanho",
-      "preto",
+      "preto"
     ],
     required: [true, 'Faixa é obrigatória'],
     default: "branco"

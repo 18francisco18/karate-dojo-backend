@@ -141,7 +141,7 @@ async function evaluateGraduation(id, score, comments, instructorId) {
 
     // Se a pontuação for >= 50, atualizar o cinto dos estudantes
     if (score >= 50) {
-      const beltLevels = ['branca', 'amarela', 'vermelha', 'laranja', 'verde', 'roxa', 'marrom', 'preta'];
+      const beltLevels = ['branco', 'amarelo', 'azul', 'laranja', 'verde', 'roxo', 'castanho', 'preto'];
       const nextBeltIndex = beltLevels.indexOf(graduation.level);
 
       // Atualizar o cinto de cada estudante e gerar diploma
@@ -316,10 +316,21 @@ async function enrollStudentInGraduation(graduationId, studentId) {
       throw new Error('Estudante não encontrado');
     }
 
+    console.log('Dados encontrados:', {
+      student: {
+        id: student._id,
+        belt: student.belt
+      },
+      graduation: {
+        id: graduation._id,
+        level: graduation.level
+      }
+    });
+
     // Verificar se o estudante já está inscrito em alguma graduação
     const existingEnrollment = await Graduation.findOne({
       enrolledStudents: studentId,
-      _id: { $ne: graduationId } // Excluir a graduação atual da busca
+      _id: { $ne: graduationId }
     });
 
     if (existingEnrollment) {
@@ -337,30 +348,38 @@ async function enrollStudentInGraduation(graduationId, studentId) {
     }
 
     // Array com a ordem das faixas
-    const beltLevels = ['branca', 'amarela', 'vermelha', 'laranja', 'verde', 'roxa', 'marrom', 'preta'];
+    const beltLevels = ['branco', 'amarelo', 'azul', 'laranja', 'verde', 'roxo', 'castanho', 'preto'];
+    
+    // Normalizar as faixas para minúsculas
+    const studentBelt = student.belt.toLowerCase();
+    const graduationLevel = graduation.level.toLowerCase();
     
     // Obter os índices das faixas
-    const currentBeltIndex = beltLevels.indexOf(student.belt.toLowerCase());
-    const graduationBeltIndex = beltLevels.indexOf(graduation.level.toLowerCase());
+    const currentBeltIndex = beltLevels.indexOf(studentBelt);
+    const graduationBeltIndex = beltLevels.indexOf(graduationLevel);
 
     console.log('Verificando faixas:', {
-      studentBelt: student.belt,
-      graduationLevel: graduation.level,
+      studentBelt,
+      graduationLevel,
       currentBeltIndex,
-      graduationBeltIndex
+      graduationBeltIndex,
+      beltLevels
     });
 
     // Verificar se as faixas são válidas
-    if (currentBeltIndex === -1 || graduationBeltIndex === -1) {
-      throw new Error('Faixa inválida detectada');
+    if (currentBeltIndex === -1) {
+      throw new Error(`Faixa do estudante inválida: ${student.belt}`);
+    }
+    if (graduationBeltIndex === -1) {
+      throw new Error(`Nível da graduação inválido: ${graduation.level}`);
     }
 
     // Verificar se a graduação é para a próxima faixa
     if (graduationBeltIndex !== currentBeltIndex + 1) {
       const nextBelt = beltLevels[currentBeltIndex + 1];
       throw new Error(
-        `Com a faixa ${student.belt}, você só pode se inscrever em graduações para faixa ${nextBelt}. ` +
-        `Esta graduação é para faixa ${graduation.level}.`
+        `Com a faixa ${studentBelt}, você só pode se inscrever em graduações para faixa ${nextBelt}. ` +
+        `Esta graduação é para faixa ${graduationLevel}.`
       );
     }
 
