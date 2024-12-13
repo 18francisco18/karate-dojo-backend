@@ -12,10 +12,13 @@ const GraduationRouter = () => {
   // 1. Rota para criar graduação (apenas Admin)
   router.post("/create", verifyTokenMiddleware("Admin"), async (req, res) => {
     try {
-      const { level, instructorId, location, date, availableSlots, scope } = req.body;
-      if (!level || !instructorId || !location || !date || !availableSlots || !scope) {
+      const { level, location, date, availableSlots, scope } = req.body;
+      const instructorId = req.userId; // Usar o ID do Admin logado
+
+      if (!level || !location || !date || !availableSlots || !scope) {
         return res.status(400).json({ message: "Todos os campos são obrigatórios" });
       }
+      
       const graduation = await GraduationController.createGraduation(
         level,
         instructorId,
