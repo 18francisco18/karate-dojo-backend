@@ -141,7 +141,7 @@ async function evaluateGraduation(id, score, comments, instructorId) {
 
     // Se a pontuação for >= 50, atualizar o cinto dos estudantes
     if (score >= 50) {
-      const beltLevels = ['branco', 'amarelo', 'azul', 'laranja', 'verde', 'roxo', 'castanho', 'preto'];
+      const beltLevels = ['branco', 'amarelo', 'laranja', 'verde', 'azul', 'roxo', 'castanho', 'preto'];
       const nextBeltIndex = beltLevels.indexOf(graduation.level);
 
       // Atualizar o cinto de cada estudante e gerar diploma
@@ -348,7 +348,7 @@ async function enrollStudentInGraduation(graduationId, studentId) {
     }
 
     // Array com a ordem das faixas
-    const beltLevels = ['branco', 'amarelo', 'azul', 'laranja', 'verde', 'roxo', 'castanho', 'preto'];
+    const beltLevels = ['branco', 'amarelo', 'laranja', 'verde', 'azul', 'roxo', 'castanho', 'preto'];
     
     // Normalizar as faixas para minúsculas
     const studentBelt = student.belt.toLowerCase();
