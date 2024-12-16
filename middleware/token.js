@@ -10,7 +10,6 @@ function verifyTokenMiddleware(requiredRole = null) {
         .status(401)
         .send({ auth: false, message: "No token provided." });
     }
-
     try {
       const decoded = await Users.verifyToken(token);
       console.log("Decoded Token:", decoded); // Log para depuração

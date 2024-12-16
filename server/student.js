@@ -244,6 +244,31 @@ const StudentRouter = () => {
     }
   );
 
+  // Rota para cancelar inscrição em uma graduação
+  router.post(
+    "/graduations/:id/cancel",
+    VerifyToken(),
+    checkSuspended,
+    async (req, res) => {
+      try {
+        const { id } = req.params;
+        const studentId = req.userId;
+
+        if (!studentId) {
+          return res
+            .status(400)
+            .json({ error: "ID do aluno não encontrado no token." });
+        }
+
+        const result = await GraduationController.unenrollStudentFromGraduation(id, studentId);
+        res.status(200).json(result);
+      } catch (error) {
+        console.error("Erro ao cancelar inscrição na graduação:", error.message);
+        res.status(500).json({ error: error.message });
+      }
+    }
+  );
+
   // Rota para obter os detalhes do estudante
   router.get("/details", VerifyToken(), async (req, res) => {
     const studentId = req.userId; // O ID do aluno vem do token verificado no middleware
