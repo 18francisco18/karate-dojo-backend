@@ -82,6 +82,7 @@ async function getAllGraduations(
 
     // Executar consulta com filtros, ordenação e paginação
     const graduations = await Graduation.find(query)
+      .populate('instructor')
       .sort(sortOptions)
       .skip(skip)
       .limit(limit);
