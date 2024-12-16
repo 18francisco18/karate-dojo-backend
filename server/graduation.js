@@ -162,8 +162,10 @@ const GraduationRouter = () => {
         parseInt(limit)
       );
 
-      res.status(200).json(graduations);
+      // Ensure we're sending an array
+      res.status(200).json(Array.isArray(graduations) ? graduations : []);
     } catch (error) {
+      console.error("Erro ao buscar graduações:", error);
       res.status(500).json({ message: error.message });
     }
   });

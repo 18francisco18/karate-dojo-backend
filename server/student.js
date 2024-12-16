@@ -264,6 +264,20 @@ const StudentRouter = () => {
     }
   });
 
+  // Rota para listar todos os estudantes
+  router.get("/all", VerifyToken(), async (req, res) => {
+    try {
+      const students = await Student.find()
+        .populate('instructor')
+        .populate('monthlyPlan')
+        .select('-password'); // Exclude password field
+      res.status(200).json(students || []);
+    } catch (error) {
+      console.error("Erro ao buscar estudantes:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   return router;
 };
 
