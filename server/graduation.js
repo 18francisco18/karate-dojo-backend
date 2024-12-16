@@ -222,15 +222,14 @@ const GraduationRouter = () => {
         order: sortOrder
       };
 
-      const graduations = await GraduationController.getAllGraduations(
+      const result = await GraduationController.getAllGraduations(
         filters,
         sort,
         parseInt(page),
         parseInt(limit)
       );
 
-      // Ensure we're sending an array
-      res.status(200).json(Array.isArray(graduations) ? graduations : []);
+      res.status(200).json(result);
     } catch (error) {
       console.error("Erro ao listar graduações:", error);
       res.status(500).json({ message: error.message });
