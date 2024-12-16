@@ -3,6 +3,7 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const GraduationController = require("../data/graduation/controller");
 const verifyTokenMiddleware = require("../middleware/token");
+const path = require("path");
 
 const GraduationRouter = () => {
   let router = express.Router();
@@ -34,20 +35,23 @@ const GraduationRouter = () => {
     }
   });
 
-  // 2. Rota para avaliar graduação (apenas Admin)
-  router.patch(
-    "/evaluate/:id",
+  // 2. Rota para avaliar um estudante em uma graduação
+  router.post(
+    "/evaluate/:graduationId/:studentId",
     verifyTokenMiddleware("Admin"),
     async (req, res) => {
       try {
         const { score, comments } = req.body;
-        const { id } = req.params;
+        const { graduationId, studentId } = req.params;
         const instructorId = req.userId;
+
         if (!score || !comments) {
           return res.status(400).json({ message: "Nota e comentários são obrigatórios" });
         }
+
         const result = await GraduationController.evaluateGraduation(
-          id,
+          graduationId,
+          studentId,
           score,
           comments,
           instructorId
@@ -55,12 +59,8 @@ const GraduationRouter = () => {
 
         res.status(200).json(result);
       } catch (error) {
-        console.error("Erro ao avaliar graduação:", error);
-        if (error.message.includes("já foi avaliada")) {
-          res.status(400).json({ message: "Esta graduação já foi avaliada." });
-        } else {
-          res.status(500).json({ message: error.message });
-        }
+        console.error("Erro ao avaliar estudante:", error);
+        res.status(500).json({ message: error.message });
       }
     }
   );
@@ -234,6 +234,13 @@ const GraduationRouter = () => {
       console.error("Erro ao listar graduações:", error);
       res.status(500).json({ message: error.message });
     }
+  });
+
+  // Servir arquivos de diploma
+  router.get("/diploma/:filename", verifyTokenMiddleware(), (req, res) => {
+    const filename = req.params.filename;
+    const diplomaPath = path.join(__dirname, '..', 'diplomas', filename);
+    res.sendFile(diplomaPath);
   });
 
   return router;

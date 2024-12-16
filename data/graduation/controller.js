@@ -83,6 +83,7 @@ async function getAllGraduations(
     // Executar consulta com filtros, ordenação e paginação
     const graduations = await Graduation.find(query)
       .populate('instructor')
+      .populate('enrolledStudents')
       .sort(sortOptions)
       .skip(skip)
       .limit(limit);
@@ -101,15 +102,15 @@ async function getAllGraduations(
   }
 }
 
-// 2. Avaliar Graduação
-async function evaluateGraduation(id, score, comments, instructorId) {
+// 2. Avaliar Estudante em uma Graduação
+async function evaluateGraduation(graduationId, studentId, score, comments, instructorId) {
   if (score < 0 || score > 100) {
     throw new Error("Pontuação deve estar entre 0 e 100");
   }
 
   try {
     // Buscar a graduação e popular os estudantes associados
-    const graduation = await Graduation.findById(id)
+    const graduation = await Graduation.findById(graduationId)
       .populate('enrolledStudents', 'name belt email')
       .populate('instructor', 'name');
 
@@ -117,14 +118,17 @@ async function evaluateGraduation(id, score, comments, instructorId) {
       throw new Error("Graduação não encontrada");
     }
 
-    // Verificar se a graduação já foi avaliada
-    if (graduation.evaluated) {
-      throw new Error("Esta graduação já foi avaliada");
+    // Verificar se o estudante está inscrito
+    if (!graduation.enrolledStudents.some(student => student._id.toString() === studentId)) {
+      throw new Error("Estudante não está inscrito nesta graduação");
     }
 
-    // Verificar se há estudantes inscritos
-    if (!graduation.enrolledStudents || graduation.enrolledStudents.length === 0) {
-      throw new Error("Não há estudantes inscritos nesta graduação");
+    // Verificar se o estudante já foi avaliado
+    const existingEvaluation = graduation.studentEvaluations.find(
+      eval => eval.student.toString() === studentId
+    );
+    if (existingEvaluation) {
+      throw new Error("Este estudante já foi avaliado nesta graduação");
     }
 
     // Buscar o instrutor que está avaliando
@@ -133,75 +137,70 @@ async function evaluateGraduation(id, score, comments, instructorId) {
       throw new Error("Instrutor avaliador não encontrado");
     }
 
-    // Atualizar o status da graduação
-    graduation.score = score;
-    graduation.comments = comments;
-    graduation.evaluated = true;
-    graduation.evaluationDate = new Date();
-    graduation.evaluatedBy = instructorId;
-
-    // Se a pontuação for >= 50, atualizar o cinto dos estudantes
-    if (score >= 50) {
-      const beltLevels = ['branco', 'amarelo', 'laranja', 'verde', 'azul', 'roxo', 'castanho', 'preto'];
-      const nextBeltIndex = beltLevels.indexOf(graduation.level);
-
-      // Atualizar o cinto de cada estudante e gerar diploma
-      const diplomaPaths = [];
-      for (const student of graduation.enrolledStudents) {
-        if (!student || !student.name) {
-          console.error('Estudante inválido:', student);
-          continue;
-        }
-
-        // Atualizar o cinto do estudante
-        await Student.findByIdAndUpdate(student._id, {
-          belt: graduation.level,
-          lastGraduationDate: new Date()
-        });
-
-        // Gerar diploma
-        const diplomaPath = await generateDiploma(
-          student.name, 
-          graduation.level, 
-          graduation.evaluationDate,
-          evaluatingInstructor.name
-        );
-        diplomaPaths.push(diplomaPath);
-
-        // Enviar email de parabéns com o diploma
-        const emailSubject = "Parabéns pela sua graduação!";
-        const emailBody = `
-          Olá ${student.name},
-
-          Parabéns por sua graduação para a faixa ${graduation.level}!
-          
-          Sua avaliação foi concluída com sucesso com uma pontuação de ${score}/100.
-          
-          Comentários do instrutor ${evaluatingInstructor.name}:
-          ${comments}
-          
-          Seu diploma está anexado a este email.
-          
-          Atenciosamente,
-          Academia de Karatê
-        `;
-
-        await sendEmail(student.email, emailSubject, emailBody, [diplomaPath]);
-      }
-
-      graduation.diplomaPaths = diplomaPaths;
+    // Buscar o estudante
+    const student = await Student.findById(studentId);
+    if (!student) {
+      throw new Error("Estudante não encontrado");
     }
+
+    let diplomaPath = null;
+    // Se aprovado (score >= 50), atualizar o cinto e gerar diploma
+    if (score >= 50) {
+      // Atualizar o cinto do estudante
+      await Student.findByIdAndUpdate(studentId, {
+        belt: graduation.level,
+        lastGraduationDate: new Date()
+      });
+
+      // Gerar diploma
+      diplomaPath = await generateDiploma(
+        student.name, 
+        graduation.level, 
+        new Date(),
+        evaluatingInstructor.name
+      );
+
+      // Enviar email de parabéns com o diploma
+      const emailSubject = "Parabéns pela sua graduação!";
+      const emailBody = `
+        Olá ${student.name},
+
+        Parabéns por sua graduação para a faixa ${graduation.level}!
+        
+        Sua avaliação foi concluída com sucesso com uma pontuação de ${score}/100.
+        
+        Comentários do instrutor ${evaluatingInstructor.name}:
+        ${comments}
+        
+        Seu diploma está anexado a este email.
+        
+        Atenciosamente,
+        Academia de Karatê
+      `;
+
+      await sendEmail(student.email, emailSubject, emailBody, [diplomaPath]);
+    }
+
+    // Adicionar a avaliação ao array de avaliações
+    graduation.studentEvaluations.push({
+      student: studentId,
+      score,
+      comments,
+      evaluatedBy: instructorId,
+      evaluationDate: new Date(),
+      diplomaPath
+    });
 
     await graduation.save();
 
     return {
-      message: score >= 50 ? "Graduação avaliada com sucesso. Estudantes promovidos!" : "Graduação avaliada com reprovação",
-      graduation,
-      diplomaPaths: graduation.diplomaPaths
+      message: score >= 50 ? 
+        `Estudante ${student.name} aprovado e promovido para ${graduation.level}!` : 
+        `Estudante ${student.name} não atingiu a pontuação mínima para aprovação.`,
+      evaluation: graduation.studentEvaluations[graduation.studentEvaluations.length - 1]
     };
   } catch (error) {
-    console.error("Erro detalhado:", error);
-    throw new Error("Erro ao avaliar graduação: " + error.message);
+    throw new Error("Erro ao avaliar estudante: " + error.message);
   }
 }
 
@@ -209,18 +208,16 @@ async function evaluateGraduation(id, score, comments, instructorId) {
 async function getUserGraduations(userId, page = 1, limit = 10) {
   try {
     const skip = (page - 1) * limit;
-    const graduations = await Graduation.find({ student: userId })
-      .populate("student instructor")
+    
+    // Buscar todas as graduações
+    const graduations = await Graduation.find()
+      .populate('instructor')
+      .populate('enrolledStudents')
+      .populate('studentEvaluations.student')
       .skip(skip)
       .limit(limit);
 
-    if (!graduations || graduations.length === 0) {
-      throw new Error("Nenhuma graduação encontrada para este usuário.");
-    }
-
-    const totalGraduations = await Graduation.countDocuments({
-      student: userId,
-    });
+    const totalGraduations = await Graduation.countDocuments();
 
     return {
       currentPage: page,
@@ -236,9 +233,10 @@ async function getUserGraduations(userId, page = 1, limit = 10) {
 // 4. Obter Graduação por ID
 async function getGraduationById(id) {
   try {
-    const graduation = await Graduation.findById(id).populate(
-      "student instructor"
-    );
+    const graduation = await Graduation.findById(id)
+      .populate('instructor')
+      .populate('enrolledStudents')
+      .populate('studentEvaluations.student');
     if (!graduation) {
       throw new Error("Graduação não encontrada");
     }

@@ -84,9 +84,7 @@ async function generateDiploma(
         doc.text(`_______________________________`, { align: "center" });
       }
 
-      doc
-        .fontSize(12)
-        .text(instructorName, { align: "center" })
+      doc.fontSize(12).text("Instrutor", instructorName, { align: "center" });
 
       // Finaliza o PDF
       doc.end();
@@ -115,10 +113,9 @@ async function generateReceipt(monthlyFee, instructorName) {
       }
 
       const doc = new PDFDocument();
-      const fileName = `recibo_${monthlyFee.user.name.replace(
-        /\s+/g,
-        "_"
-      )}_${new Date().getMonth() + 1}_${new Date().getFullYear()}.pdf`;
+      const fileName = `recibo_${monthlyFee.user.name.replace(/\s+/g, "_")}_${
+        new Date().getMonth() + 1
+      }_${new Date().getFullYear()}.pdf`;
       const filePath = path.join(dirPath, fileName);
       const writeStream = fs.createWriteStream(filePath);
 
@@ -155,7 +152,9 @@ async function generateReceipt(monthlyFee, instructorName) {
         })
         .moveDown()
         .text(
-          `referente à mensalidade de ${new Date().toLocaleString('pt-BR', { month: 'long' })}/${new Date().getFullYear()}`,
+          `referente à mensalidade de ${new Date().toLocaleString("pt-BR", {
+            month: "long",
+          })}/${new Date().getFullYear()}`,
           { align: "center" }
         );
 
@@ -165,7 +164,9 @@ async function generateReceipt(monthlyFee, instructorName) {
         .moveDown()
         .fontSize(12)
         .text(
-          `Data do Pagamento: ${monthlyFee.paymentDate.toLocaleDateString('pt-BR')}`,
+          `Data do Pagamento: ${monthlyFee.paymentDate.toLocaleDateString(
+            "pt-BR"
+          )}`,
           { align: "center" }
         );
 
@@ -187,9 +188,7 @@ async function generateReceipt(monthlyFee, instructorName) {
         doc.text(`_______________________________`, { align: "center" });
       }
 
-      doc
-        .fontSize(12)
-        .text(instructorName, { align: "center" })
+      doc.fontSize(12).text(instructorName, { align: "center" });
 
       // Finaliza o PDF
       doc.end();

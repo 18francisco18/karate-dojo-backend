@@ -24,13 +24,18 @@ let graduationSchema = new Schema({
     required: true,
   },
   date: { type: Date, default: Date.now },
-  score: { type: Number, min: 0, max: 100 },
   instructor: { type: mongoose.Schema.Types.ObjectId, ref: "Instructor" },
   location: { type: String },
-  comments: { type: String },
-  certificateUrl: { type: String },
   availableSlots: { type: Number, required: true },
   enrolledStudents: [{ type: Schema.Types.ObjectId, ref: "Student" }],
+  studentEvaluations: [{
+    student: { type: Schema.Types.ObjectId, ref: "Student", required: true },
+    score: { type: Number, min: 0, max: 100 },
+    comments: { type: String },
+    evaluatedBy: { type: Schema.Types.ObjectId, ref: "Instructor" },
+    evaluationDate: { type: Date },
+    diplomaPath: { type: String }
+  }]
 }, {
   collection: 'graduations'
 });
