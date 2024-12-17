@@ -142,7 +142,7 @@ const AuthStudentRouter = () => {
   });
 
   // Rota para buscar todos os estudantes (rota protegida)
-  router.get("/students", VerifyToken, async (req, res) => {
+  router.get("/students", VerifyToken("Admin","Student"), async (req, res) => {
     try {
       const students = await StudentService.findAllStudents();
       res.status(200).json(students);
