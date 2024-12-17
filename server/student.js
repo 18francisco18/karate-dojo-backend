@@ -303,6 +303,30 @@ const StudentRouter = () => {
     }
   });
 
+  // Rota para remover associação com instrutor
+  router.delete(
+    "/remove-instructor",
+    VerifyToken(),
+    checkSuspended,
+    async (req, res) => {
+      const studentId = req.userId;
+
+      if (!studentId) {
+        return res
+          .status(400)
+          .json({ error: "ID do aluno não encontrado no token" });
+      }
+
+      try {
+        const result = await StudentController.removeInstructor(studentId);
+        res.status(200).json({ message: result });
+      } catch (error) {
+        console.error("Erro ao remover instrutor do aluno:", error);
+        res.status(500).json({ error: error.message });
+      }
+    }
+  );
+
   return router;
 };
 

@@ -13,6 +13,7 @@ const StudentController = {
   getStudentDetails,
   enrollInGraduation,
   chooseInstructor,
+  removeInstructor,
   getCurrentPlan,
 };
 
@@ -222,6 +223,42 @@ async function chooseInstructor(studentId, instructorId) {
   } catch (error) {
     console.error("Erro ao escolher instrutor:", error.message);
     throw new Error("Erro ao escolher instrutor: " + error.message);
+  }
+}
+
+async function removeInstructor(studentId) {
+  try {
+    // Buscar o aluno
+    const student = await Student.findById(studentId);
+    if (!student) {
+      throw new Error("Aluno não encontrado.");
+    }
+
+    // Verificar se o aluno tem um instrutor associado
+    if (!student.instructor) {
+      throw new Error("Aluno não possui instrutor associado.");
+    }
+
+    // Buscar o instrutor atual
+    const instructor = await Instructor.findById(student.instructor);
+    if (!instructor) {
+      throw new Error("Instrutor não encontrado.");
+    }
+
+    // Remover o aluno da lista de alunos do instrutor
+    const studentIndex = instructor.students.indexOf(studentId);
+    if (studentIndex > -1) {
+      instructor.students.splice(studentIndex, 1);
+      await instructor.save();
+    }
+
+    // Remover a referência do instrutor do aluno
+    student.instructor = null;
+    await student.save();
+
+    return "Instrutor removido com sucesso.";
+  } catch (error) {
+    throw new Error("Erro ao remover instrutor: " + error.message);
   }
 }
 
