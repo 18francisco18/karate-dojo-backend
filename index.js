@@ -5,6 +5,7 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const config = require("./config");
 const http = require("http");
+const path = require("path");
 
 const app = express();
 
@@ -42,11 +43,20 @@ const connectWithRetry = () => {
     .then(() => {
       console.log("MongoDB Connection successful!");
       
-      // Add password recovery routes
-      app.use("/", RecoverPassword());
-      
+      // Configurar pasta de uploads como estática
+      app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
       let router = require("./router");
       app.use(router.init());
+
+      // Importar a nova rota de imagem de perfil
+      const profileImageRoutes = require('./routes/profileImage');
+
+      // Adicionar a rota de imagem de perfil
+      app.use('/api/profile-image', profileImageRoutes);
+
+      // Add password recovery routes
+      app.use("/", RecoverPassword());
     })
     .catch((err) => {
       console.error("MongoDB connection error FULL:", err);
