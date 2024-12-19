@@ -119,11 +119,11 @@ function StudentService() {
 
   async function removeStudentById(id) {
     try {
-      // Soft delete - apenas marca como inativo
-      await Student.findByIdAndUpdate(id, { 
-        active: false,
-        updatedAt: new Date()
-      });
+      // Hard delete - remove o estudante completamente
+      const result = await Student.findByIdAndDelete(id);
+      if (!result) {
+        throw new Error("Estudante não encontrado");
+      }
       return "Estudante removido com sucesso";
     } catch (err) {
       console.error("Erro ao remover estudante:", err);

@@ -114,7 +114,7 @@ const InstructorRouter = () => {
   });
 
   // Rota para listar todos os estudantes no sistema
-  router.get("/students", VerifyToken, async (req, res) => {
+  router.get("/students", VerifyToken("Admin"), async (req, res) => {
     try {
       const students = await InstructorController.getAllStudents();
       res.status(200).json(students);

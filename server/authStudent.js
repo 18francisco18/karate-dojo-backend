@@ -181,11 +181,17 @@ const AuthStudentRouter = () => {
   });
 
   // Rota para remover um estudante (rota protegida)
-  router.delete("/student/:id", VerifyToken, async (req, res) => {
+  router.delete("/student/:id", VerifyToken(), async (req, res) => {
     try {
+      // Verificar se o usuário é Admin ou se está tentando deletar sua própria conta
+      if (req.userRole !== "Admin" && req.userId !== req.params.id) {
+        return res.status(403).json({ error: "Você só pode deletar sua própria conta" });
+      }
+
       const message = await StudentService.removeStudentById(req.params.id);
       res.status(200).json({ message });
     } catch (error) {
+      console.error("Erro ao deletar estudante:", error);
       res.status(500).json({ error: error.message });
     }
   });
