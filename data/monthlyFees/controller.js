@@ -12,6 +12,7 @@ const MonthlyFeeController = {
   notifyOverdueMonthlyFee,
   manuallyUnsuspendStudent,
   getAllMonthlyFees,
+  hasUnpaidFees
 };
 
 // Função para criar uma mensalidade
@@ -260,4 +261,26 @@ async function getAllMonthlyFees() {
   }
 }
 
-module.exports = MonthlyFeeController;
+// Função para verificar se o aluno tem mensalidades pendentes
+async function hasUnpaidFees(studentId) {
+  try {
+    const unpaidFees = await MonthlyFee.find({
+      student: studentId,
+      status: { $in: ['pending', 'late'] }
+    });
+    return unpaidFees.length > 0;
+  } catch (error) {
+    console.error("Erro ao verificar mensalidades pendentes:", error.message);
+    throw error;
+  }
+}
+
+module.exports = {
+  createMonthlyFee,
+  updateMonthlyFeeStatus,
+  markMonthlyFeeAsPaid,
+  notifyOverdueMonthlyFee,
+  manuallyUnsuspendStudent,
+  getAllMonthlyFees,
+  hasUnpaidFees
+};

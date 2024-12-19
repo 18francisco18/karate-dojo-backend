@@ -6,6 +6,8 @@ const checkSuspended = require("../middleware/checkSuspended");
 const StudentController = require("../data/student/controller");
 const GraduationController = require("../data/graduation/controller");
 const MonthlyPlanController = require("../data/monthlyPlans/controller");
+const MonthlyFeeController = require("../data/monthlyFees/controller");
+const MonthlyFee = require("../models/monthlyFee");
 
 const StudentRouter = () => {
   let router = express.Router();
@@ -59,12 +61,28 @@ const StudentRouter = () => {
     }
   });
 
-  router.delete("/cancel-plan", VerifyToken(), checkSuspended, async (req, res) => {
+  router.delete("/cancel-plan", VerifyToken(), async (req, res) => {
     try {
-      const result = await MonthlyPlanController.cancelActivePlan(req.userId);
-      res.json(result);
+      const studentId = req.userId;
+
+      // Verificar se o aluno tem mensalidades pendentes
+      const hasUnpaid = await MonthlyFeeController.hasUnpaidFees(studentId);
+      if (hasUnpaid) {
+        return res.status(400).json({
+          error: "Não é possível cancelar o plano com mensalidades pendentes",
+          message: "Por favor, pague todas as mensalidades pendentes antes de cancelar o plano"
+        });
+      }
+
+      // Cancelar o plano usando o MonthlyPlanController
+      const result = await MonthlyPlanController.cancelActivePlan(studentId);
+      res.status(200).json({
+        message: "Plano cancelado com sucesso",
+        data: result
+      });
     } catch (error) {
-      res.status(400).json({ error: error.message });
+      console.error("Erro ao cancelar plano:", error);
+      res.status(500).json({ error: error.message });
     }
   });
 
@@ -326,6 +344,72 @@ const StudentRouter = () => {
       }
     }
   );
+
+  // Rota para obter as mensalidades do estudante logado
+  router.get("/my-monthly-fees", VerifyToken(), async (req, res) => {
+    try {
+      const studentId = req.userId;
+      const monthlyFees = await MonthlyFee.find({ student: studentId })
+        .sort({ dueDate: -1 })
+        .select('amount dueDate status paymentDate receiptPath');
+
+      res.status(200).json({
+        message: "Mensalidades recuperadas com sucesso",
+        data: monthlyFees
+      });
+    } catch (error) {
+      console.error("Erro ao buscar mensalidades:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Rota para visualizar o recibo
+  router.get("/receipt/:monthlyFeeId", VerifyToken(), async (req, res) => {
+    try {
+      const studentId = req.userId;
+      const monthlyFeeId = req.params.monthlyFeeId;
+
+      const monthlyFee = await MonthlyFee.findOne({
+        _id: monthlyFeeId,
+        student: studentId,
+        status: 'paid'
+      });
+
+      if (!monthlyFee) {
+        return res.status(404).json({
+          error: "Recibo não encontrado",
+          message: "Mensalidade não encontrada ou não está paga"
+        });
+      }
+
+      if (!monthlyFee.receiptPath) {
+        return res.status(404).json({
+          error: "Recibo não disponível",
+          message: "O recibo desta mensalidade não está disponível"
+        });
+      }
+
+      // Usar o caminho do recibo diretamente, já que ele já é absoluto
+      const filePath = monthlyFee.receiptPath;
+      console.log('Tentando acessar o recibo em:', filePath);
+
+      // Verificar se o arquivo existe
+      const fs = require('fs');
+      if (!fs.existsSync(filePath)) {
+        console.error('Arquivo não encontrado:', filePath);
+        return res.status(404).json({
+          error: "Arquivo não encontrado",
+          message: "O arquivo do recibo não foi encontrado no servidor"
+        });
+      }
+
+      // Enviar o arquivo
+      res.sendFile(filePath);
+    } catch (error) {
+      console.error("Erro ao buscar recibo:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
 
   return router;
 };

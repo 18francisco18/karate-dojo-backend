@@ -113,20 +113,23 @@ async function generateReceipt(monthlyFee, instructorName) {
       }
 
       const doc = new PDFDocument();
-      const fileName = `recibo_${monthlyFee.user.name.replace(/\s+/g, "_")}_${
-        new Date().getMonth() + 1
-      }_${new Date().getFullYear()}.pdf`;
+      const month = new Date(monthlyFee.paymentDate).getMonth() + 1;
+      const year = new Date(monthlyFee.paymentDate).getFullYear();
+      const fileName = `recibo_${monthlyFee.user.name.replace(/\s+/g, "_")}_${month}_${year}.pdf`;
       const filePath = path.join(dirPath, fileName);
       const writeStream = fs.createWriteStream(filePath);
 
       doc.pipe(writeStream);
 
       // Adiciona logo
-      doc.image(path.join(__dirname, "../assets/logo-ipp.png"), {
-        fit: [100, 100],
-        align: "center",
-        valign: "top",
-      });
+      const logoPath = path.join(__dirname, "../assets/logo-ipp.png");
+      if (fs.existsSync(logoPath)) {
+        doc.image(logoPath, {
+          fit: [100, 100],
+          align: "center",
+          valign: "top",
+        });
+      }
 
       doc
         .fontSize(30)
@@ -141,43 +144,21 @@ async function generateReceipt(monthlyFee, instructorName) {
 
       doc
         .moveDown()
-        .fontSize(18)
+        .fontSize(14)
         .font("Helvetica")
-        .text(`Recebemos de ${monthlyFee.user.name.toUpperCase()}`, {
-          align: "center",
-        })
+        .text(`Nome do Aluno: ${monthlyFee.user.name}`)
         .moveDown()
-        .text(`o valor de €${monthlyFee.amount.toFixed(2)}`, {
-          align: "center",
-        })
+        .text(`Valor Pago: €${monthlyFee.amount}`)
         .moveDown()
-        .text(
-          `referente à mensalidade de ${new Date().toLocaleString("pt-BR", {
-            month: "long",
-          })}/${new Date().getFullYear()}`,
-          { align: "center" }
-        );
-
-      // Adiciona data do pagamento
-      doc
+        .text(`Data de Pagamento: ${new Date(monthlyFee.paymentDate).toLocaleDateString()}`)
         .moveDown()
-        .moveDown()
-        .fontSize(12)
-        .text(
-          `Data do Pagamento: ${monthlyFee.paymentDate.toLocaleDateString(
-            "pt-BR"
-          )}`,
-          { align: "center" }
-        );
+        .text(`Método de Pagamento: ${monthlyFee.paymentMethod}`);
 
       // Adiciona imagem da assinatura
       doc.moveDown().moveDown();
 
       // Verifica se a imagem da assinatura existe
-      const signaturePath = path.join(
-        __dirname,
-        "../assets/masterSignature.png"
-      );
+      const signaturePath = path.join(__dirname, "../assets/masterSignature.png");
       if (fs.existsSync(signaturePath)) {
         doc.image(signaturePath, {
           fit: [150, 50],
