@@ -41,6 +41,11 @@ async function enrollInGraduation(studentId, graduationId) {
       throw new Error("Estudante não possui plano ativo");
     }
 
+    // Verificar se o estudante tem instrutor
+    if (!student.instructor) {
+      throw new Error("Você precisa escolher um instrutor antes de participar de graduações");
+    }
+
     // Buscar a graduação
     const graduation = await Graduation.findById(graduationId);
     if (!graduation) {
@@ -189,9 +194,14 @@ async function chooseInstructor(studentId, instructorId) {
     console.log("ID do Instrutor recebido:", instructorId);
 
     // Buscar aluno pelo ID
-    const student = await Student.findById(studentId);
+    const student = await Student.findById(studentId).populate('monthlyPlan');
     if (!student) {
       throw new Error("Aluno não encontrado.");
+    }
+
+    // Verificar se o aluno tem um plano ativo
+    if (!student.monthlyPlan) {
+      throw new Error("Você precisa escolher um plano antes de selecionar um instrutor.");
     }
 
     // Buscar instrutor pelo ID
