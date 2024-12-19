@@ -142,14 +142,32 @@ async function markMonthlyFeeAsPaid(monthlyFeeId, paymentMethod) {
         instructorName
       );
       console.log(`Recibo gerado em: ${receiptPath}`);
+      
+      // Salva o caminho do recibo na mensalidade
+      monthlyFee.receiptPath = receiptPath;
+      await monthlyFee.save();
+      console.log('Mensalidade atualizada com receiptPath:', monthlyFee);
     } catch (error) {
       console.error("Erro ao gerar recibo:", error.message);
       // Não interrompe o fluxo se houver erro na geração do recibo
     }
 
+    // Busca a mensalidade atualizada para garantir que todos os campos estão presentes
+    const updatedMonthlyFee = await MonthlyFee.findById(monthlyFee._id)
+      .populate({
+        path: "student",
+        select: "name email instructor",
+        populate: {
+          path: "instructor",
+          select: "name email"
+        }
+      });
+
+    console.log('Mensalidade atualizada retornada:', updatedMonthlyFee);
+    
     return {
       message: "Mensalidade marcada como paga com sucesso",
-      monthlyFee,
+      monthlyFee: updatedMonthlyFee,
       receiptPath
     };
   } catch (error) {
@@ -213,8 +231,28 @@ async function manuallyUnsuspendStudent(studentId) {
 async function getAllMonthlyFees() {
   try {
     const monthlyFees = await MonthlyFee.find()
-      .populate("student", "name email")
+      .populate({
+        path: "student",
+        select: "name email instructor",
+        populate: {
+          path: "instructor",
+          select: "name email"
+        }
+      })
+      .select('student amount dueDate status paymentDate paymentMethod receiptPath') 
       .sort({ dueDate: -1 });
+
+    // Log detalhado para debug
+    monthlyFees.forEach((fee, index) => {
+      console.log(`Mensalidade ${index + 1}:`, {
+        id: fee._id,
+        status: fee.status,
+        receiptPath: fee.receiptPath,
+        hasReceipt: !!fee.receiptPath
+      });
+    });
+
+    console.log('Mensalidades encontradas:', monthlyFees); 
     return monthlyFees;
   } catch (error) {
     console.error("Erro ao buscar mensalidades:", error.message);

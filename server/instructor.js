@@ -6,6 +6,7 @@ const InstructorController = require("../data/instructor/controller");
 const MonthlyFeeController = require("../data/monthlyFees/controller");
 const GraduationController = require("../data/graduation/controller");
 const MonthlyPlanController = require("../data/monthlyPlans/controller");
+const path = require("path");
 
 const InstructorRouter = () => {
   const router = express.Router();
@@ -157,13 +158,15 @@ const InstructorRouter = () => {
         paymentMethod
       );
       
+      console.log('Resultado do pagamento:', result); // Para debug
+      
       res.status(200).json({
-        message: "Mensalidade marcada como paga",
+        message: "Mensalidade marcada como paga com sucesso",
         data: result.monthlyFee,
         receiptPath: result.receiptPath
       });
     } catch (error) {
-      res.status(400).json({ message: error.message });
+      res.status(400).json({ error: error.message });
     }
   });
 
@@ -171,9 +174,10 @@ const InstructorRouter = () => {
   router.get("/monthly-fees", VerifyToken(), async (req, res) => {
     try {
       const monthlyFees = await MonthlyFeeController.getAllMonthlyFees();
+      console.log('Mensalidades encontradas:', monthlyFees); // Para debug
       res.status(200).json({
         message: "Mensalidades recuperadas com sucesso",
-        data: monthlyFees,
+        data: monthlyFees
       });
     } catch (error) {
       res.status(500).json({ error: error.message });
@@ -275,6 +279,13 @@ const InstructorRouter = () => {
     } catch (error) {
       res.status(400).json({ error: error.message });
     }
+  });
+
+  // Servir arquivos de recibo
+  router.get("/receipt/:filename", VerifyToken(), (req, res) => {
+    const filename = req.params.filename;
+    const receiptPath = path.join(__dirname, '..', 'receipts', filename);
+    res.sendFile(receiptPath);
   });
 
   return router;

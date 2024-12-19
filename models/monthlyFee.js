@@ -41,6 +41,18 @@ const monthlyFeeSchema = new Schema({
   },
   notes: { 
     type: String 
+  },
+  receiptPath: {
+    type: String,
+    default: null,
+    get: function(value) {
+      console.log('Getting receiptPath:', value); // Para debug
+      return value;
+    },
+    set: function(value) {
+      console.log('Setting receiptPath:', value); // Para debug
+      return value;
+    }
   }
 }, {
   timestamps: true,
