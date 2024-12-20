@@ -12,7 +12,8 @@ const MonthlyFeeController = {
   notifyOverdueMonthlyFee,
   manuallyUnsuspendStudent,
   getAllMonthlyFees,
-  hasUnpaidFees
+  hasUnpaidFees,
+  getFilteredMonthlyFees
 };
 
 // Função para criar uma mensalidade
@@ -240,20 +241,9 @@ async function getAllMonthlyFees() {
           select: "name email"
         }
       })
-      .select('student amount dueDate status paymentDate paymentMethod receiptPath') 
+      .select('student amount dueDate status paymentDate paymentMethod receiptPath')
       .sort({ dueDate: -1 });
 
-    // Log detalhado para debug
-    monthlyFees.forEach((fee, index) => {
-      console.log(`Mensalidade ${index + 1}:`, {
-        id: fee._id,
-        status: fee.status,
-        receiptPath: fee.receiptPath,
-        hasReceipt: !!fee.receiptPath
-      });
-    });
-
-    console.log('Mensalidades encontradas:', monthlyFees); 
     return monthlyFees;
   } catch (error) {
     console.error("Erro ao buscar mensalidades:", error.message);
@@ -275,6 +265,58 @@ async function hasUnpaidFees(studentId) {
   }
 }
 
+// Nova função para filtrar mensalidades
+async function getFilteredMonthlyFees(filters = {}) {
+  try {
+    let query = {};
+
+    if (filters.status) {
+      query.status = filters.status;
+    }
+
+    if (filters.dueDateStart || filters.dueDateEnd) {
+      query.dueDate = {};
+      if (filters.dueDateStart) {
+        query.dueDate.$gte = new Date(filters.dueDateStart);
+      }
+      if (filters.dueDateEnd) {
+        query.dueDate.$lte = new Date(filters.dueDateEnd);
+      }
+    }
+
+    if (filters.minAmount || filters.maxAmount) {
+      query.amount = {};
+      if (filters.minAmount) {
+        query.amount.$gte = Number(filters.minAmount);
+      }
+      if (filters.maxAmount) {
+        query.amount.$lte = Number(filters.maxAmount);
+      }
+    }
+
+    if (filters.paymentMethod) {
+      query.paymentMethod = filters.paymentMethod;
+    }
+
+    const monthlyFees = await MonthlyFee.find(query)
+      .populate({
+        path: "student",
+        select: "name email instructor",
+        populate: {
+          path: "instructor",
+          select: "name email"
+        }
+      })
+      .select('student amount dueDate status paymentDate paymentMethod receiptPath')
+      .sort({ dueDate: -1 });
+
+    return monthlyFees;
+  } catch (error) {
+    console.error("Erro ao filtrar mensalidades:", error);
+    throw error;
+  }
+}
+
 module.exports = {
   createMonthlyFee,
   updateMonthlyFeeStatus,
@@ -282,5 +324,6 @@ module.exports = {
   notifyOverdueMonthlyFee,
   manuallyUnsuspendStudent,
   getAllMonthlyFees,
-  hasUnpaidFees
+  hasUnpaidFees,
+  getFilteredMonthlyFees
 };

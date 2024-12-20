@@ -57,6 +57,10 @@ const connectWithRetry = () => {
 
       // Add password recovery routes
       app.use("/", RecoverPassword());
+
+      const monthlyFeesRoutes = require('./routes/monthlyFees');
+
+      app.use('/monthly-fees', monthlyFeesRoutes);
     })
     .catch((err) => {
       console.error("MongoDB connection error FULL:", err);
