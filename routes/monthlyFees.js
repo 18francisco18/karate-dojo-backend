@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const MonthlyFeeController = require('../data/monthlyFees/controller');
-const authMiddleware = require('../middlewares/auth');
+const authMiddleware = require('../middleware/token');
 
 router.get('/filtered', authMiddleware, async (req, res) => {
   try {
