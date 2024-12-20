@@ -4,10 +4,16 @@ require("dotenv").config();
 
 async function sendEmail(to, subject, text) {
   try {
-    // Configuração do transportador de e-mail usando variáveis do .env
-    let transporter = nodemailer.createTransport({
+    console.log('Configurando transportador de email com:', {
       host: process.env.EMAIL_HOST,
       port: process.env.EMAIL_PORT,
+      secure: process.env.EMAIL_SECURE === "true"
+    });
+
+    // Configuração do transportador de e-mail usando variáveis do .env
+    let transporter = nodemailer.createTransport({
+      host: process.env.EMAIL_HOST || 'smtp.mailtrap.io',
+      port: process.env.EMAIL_PORT || 2525,
       secure: process.env.EMAIL_SECURE === "true",
       auth: {
         user: process.env.EMAIL_USER,
@@ -15,20 +21,35 @@ async function sendEmail(to, subject, text) {
       },
     });
 
+    // Verifica se o transportador está funcionando
+    await transporter.verify();
+    console.log('Conexão com servidor de email estabelecida');
+
     // Detalhes do e-mail
     let mailOptions = {
-      from: process.env.EMAIL_FROM,
+      from: process.env.EMAIL_FROM || '"Karate Dojo" <noreply@karatedojo.com>',
       to: to,
       subject: subject,
       text: text,
     };
 
+    console.log('Tentando enviar email com as opções:', {
+      to: mailOptions.to,
+      subject: mailOptions.subject,
+      from: mailOptions.from
+    });
+
     // Envia o e-mail
-    await transporter.sendMail(mailOptions);
-    console.log(`E-mail enviado para ${to}`);
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Email enviado com sucesso:', info.messageId);
+    return info;
   } catch (error) {
-    console.error("Erro ao enviar e-mail:", error.message);
-    throw error;
+    console.error('Erro detalhado ao enviar email:', {
+      message: error.message,
+      code: error.code,
+      command: error.command
+    });
+    throw new Error(`Falha ao enviar email: ${error.message}`);
   }
 }
 
