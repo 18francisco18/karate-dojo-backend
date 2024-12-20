@@ -213,7 +213,7 @@ const InstructorRouter = () => {
   // Rota para convidar um aluno para uma graduação
   router.post(
     "/graduations/:id/invite/:studentEmail?",
-    VerifyToken(),
+    VerifyToken,
     async (req, res) => {
       try {
         const { id, studentEmail: emailParam } = req.params;
@@ -237,6 +237,7 @@ const InstructorRouter = () => {
           );
         res.status(200).json({ message: emailResult });
       } catch (error) {
+        console.error("Erro ao enviar convite:", error);
         res.status(500).json({ error: error.message });
       }
     }

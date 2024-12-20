@@ -435,13 +435,29 @@ async function unenrollStudentFromGraduation(graduationId, studentId) {
 async function sendGraduationInvitationEmail(studentEmail, graduation) {
   try {
     const subject = "Convite para inscrição na graduação";
-    const link = `http://localhost:5000/student/graduations/${graduation._id}/enroll`;
-    const message = `Olá, você foi convidado para se inscrever na graduação de nível ${graduation.level} que acontecerá em ${graduation.date}. Clique no link para se inscrever: ${link}`;
+    const link = `http://localhost:3000/student/graduations/${graduation._id}/enroll`; // Updated to frontend URL
+    const message = `Olá,
+
+Você foi convidado para se inscrever na graduação de nível ${graduation.level} que acontecerá em ${new Date(graduation.date).toLocaleDateString('pt-BR')}.
+    
+Para se inscrever, acesse o link: ${link}
+
+Atenciosamente,
+Equipe Karate Dojo`;
+
+    console.log('Tentando enviar email para:', studentEmail);
+    console.log('Dados da graduação:', {
+      id: graduation._id,
+      level: graduation.level,
+      date: graduation.date
+    });
 
     await sendEmail(studentEmail, subject, message);
+    console.log('Email enviado com sucesso para:', studentEmail);
     return "Email enviado com sucesso.";
   } catch (error) {
-    throw new Error("Erro ao enviar email de convite: " + error.message);
+    console.error('Erro ao enviar email de convite:', error);
+    throw new Error(`Erro ao enviar email de convite: ${error.message}`);
   }
 }
 
