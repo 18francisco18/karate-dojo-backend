@@ -15,6 +15,7 @@ const GraduationController = {
   enrollStudentInGraduation,
   unenrollStudentFromGraduation,
   sendGraduationInvitationEmail,
+  getEnrolledGraduations,
 };
 
 // 1. Criar Graduação
@@ -429,6 +430,19 @@ async function unenrollStudentFromGraduation(graduationId, studentId) {
   } catch (error) {
     console.error('Error in unenrollStudentFromGraduation:', error);
     throw error;
+  }
+}
+
+// Buscar todas as graduações em que um estudante está inscrito
+async function getEnrolledGraduations(studentId) {
+  try {
+    const graduations = await Graduation.find({
+      enrolledStudents: studentId
+    }).populate('instructor');
+
+    return graduations;
+  } catch (error) {
+    throw new Error("Erro ao buscar graduações inscritas: " + error.message);
   }
 }
 

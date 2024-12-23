@@ -287,6 +287,39 @@ const StudentRouter = () => {
     }
   );
 
+  // Rota para buscar graduações em que o aluno está inscrito
+  router.get(
+    "/enrolled-graduations",
+    VerifyToken(),
+    async (req, res) => {
+      try {
+        const studentId = req.userId;
+        console.log("Buscando graduações para o estudante:", studentId);
+        
+        const student = await StudentController.getStudentById(studentId);
+        console.log("Estudante encontrado:", student);
+        
+        if (!student) {
+          return res.status(404).json({ error: "Estudante não encontrado" });
+        }
+
+        // Buscar todas as graduações em que o aluno está inscrito
+        const enrolledGraduations = await GraduationController.getEnrolledGraduations(studentId);
+        console.log("Graduações encontradas:", enrolledGraduations);
+        
+        res.status(200).json({
+          graduations: enrolledGraduations
+        });
+      } catch (error) {
+        console.error("Erro detalhado ao buscar graduações inscritas:", error);
+        res.status(500).json({ 
+          error: "Erro ao buscar graduações inscritas",
+          details: error.message 
+        });
+      }
+    }
+  );
+
   // Rota para obter os detalhes do estudante
   router.get("/details", VerifyToken(), async (req, res) => {
     const studentId = req.userId; // O ID do aluno vem do token verificado no middleware

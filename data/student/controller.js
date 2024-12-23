@@ -15,6 +15,7 @@ const StudentController = {
   chooseInstructor,
   removeInstructor,
   getCurrentPlan,
+  getStudentById,
 };
 
 // Função para obter os planos disponíveis
@@ -290,6 +291,19 @@ async function getCurrentPlan(req, res) {
   } catch (error) {
     console.error("Erro ao buscar plano atual:", error);
     return res.status(400).json({ error: error.message });
+  }
+}
+
+// Buscar estudante por ID
+async function getStudentById(studentId) {
+  try {
+    const student = await Student.findById(studentId);
+    if (!student) {
+      throw new Error("Estudante não encontrado");
+    }
+    return student;
+  } catch (error) {
+    throw new Error("Erro ao buscar estudante: " + error.message);
   }
 }
 
