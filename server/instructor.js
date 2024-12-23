@@ -213,7 +213,7 @@ const InstructorRouter = () => {
   // Rota para convidar um aluno para uma graduação
   router.post(
     "/graduations/:id/invite/:studentEmail?",
-    VerifyToken,
+    VerifyToken("Admin"),
     async (req, res) => {
       try {
         const { id, studentEmail: emailParam } = req.params;
