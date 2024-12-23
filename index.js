@@ -6,6 +6,8 @@ const cookieParser = require("cookie-parser");
 const config = require("./config");
 const http = require("http");
 const path = require("path");
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpecs = require('./swagger');
 
 const app = express();
 
@@ -25,6 +27,9 @@ app.use(express.json());
 app.use(cors(corsOptions));
 // Middleware para analisar cookies
 app.use(cookieParser());
+
+// Swagger UI
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 
 // MongoDB connection options
 const mongooseOptions = {
