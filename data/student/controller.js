@@ -180,11 +180,21 @@ async function cancelPlan(req, res) {
 
 async function getStudentDetails(studentId) {
   try {
-    const student = await Student.findById(studentId) // Alterado para usar Student
-      .populate("monthlyPlan") // Popula o plano mensal do aluno
-      .populate("monthlyFee"); // Popula a mensalidade do aluno
+    const student = await Student.findById(studentId)
+      .populate("monthlyPlan")
+      .populate("monthlyFee")
+      .select("+profileImage"); // Explicitly select profileImage field
+    
+    // Add debug logging
+    console.log("Student details:", {
+      id: student._id,
+      name: student.name,
+      profileImage: student.profileImage
+    });
+    
     return student;
   } catch (error) {
+    console.error("Error in getStudentDetails:", error);
     throw new Error("Erro ao obter detalhes do aluno: " + error.message);
   }
 }

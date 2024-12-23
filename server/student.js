@@ -8,6 +8,7 @@ const GraduationController = require("../data/graduation/controller");
 const MonthlyPlanController = require("../data/monthlyPlans/controller");
 const MonthlyFeeController = require("../data/monthlyFees/controller");
 const MonthlyFee = require("../models/monthlyFee");
+const { Student } = require("../models/user");
 
 const StudentRouter = () => {
   let router = express.Router();
@@ -440,6 +441,37 @@ const StudentRouter = () => {
       res.sendFile(filePath);
     } catch (error) {
       console.error("Erro ao buscar recibo:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Rota para atualizar o perfil do estudante
+  router.put("/update", VerifyToken(), async (req, res) => {
+    try {
+      const studentId = req.userId;
+      const student = await Student.findById(studentId);
+
+      if (!student) {
+        return res.status(404).json({ error: "Estudante não encontrado" });
+      }
+
+      // Atualizar apenas os campos permitidos
+      const allowedUpdates = ['name', 'email', 'profileImage'];
+      const updates = {};
+      
+      Object.keys(req.body).forEach(key => {
+        if (allowedUpdates.includes(key)) {
+          updates[key] = req.body[key];
+        }
+      });
+
+      // Atualizar o estudante
+      Object.assign(student, updates);
+      await student.save();
+
+      res.status(200).json(student);
+    } catch (error) {
+      console.error("Erro ao atualizar perfil:", error);
       res.status(500).json({ error: error.message });
     }
   });

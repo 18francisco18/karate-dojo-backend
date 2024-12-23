@@ -24,48 +24,45 @@ const AuthInstructorRouter = () => {
 
   // Rota para autenticação de instrutor (login)
   router.post("/login", async (req, res) => {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ error: "Email e senha são obrigatórios" });
-    }
     try {
+      const { email, password } = req.body;
+      if (!email || !password) {
+        return res.status(400).json({ error: "Email e senha são obrigatórios" });
+      }
+
       const instructor = await InstructorService.findInstructorByEmail(email);
       if (!instructor) {
         return res.status(404).json({ error: "Instrutor não encontrado" });
       }
 
-      const isMatch = await InstructorService.comparePassword(
-        password,
-        instructor.password
-      );
+      const isMatch = await InstructorService.comparePassword(password, instructor.password);
       if (!isMatch) {
         return res.status(401).json({ error: "Senha incorreta" });
       }
 
       const token = InstructorService.createToken(instructor);
       
-      // Configuração dos cookies com opções de segurança aprimoradas
       res.cookie("token", token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
-        maxAge: 24 * 60 * 60 * 1000, // 1 dia
-        path: "/",
+        maxAge: 24 * 60 * 60 * 1000 // 24 horas
       });
 
-      res.json({
-        auth: true,
+      res.status(200).json({
+        message: "Login realizado com sucesso",
         token: token,
         instructor: {
           id: instructor._id,
           name: instructor.name,
           email: instructor.email,
-          role: instructor.role,
-        },
+          role: 'Admin',
+          profileImage: instructor.profileImage
+        }
       });
     } catch (error) {
       console.error("Erro no login:", error);
-      res.status(500).json({ error: "Erro interno do servidor" });
+      res.status(500).json({ error: "Erro ao realizar login" });
     }
   });
 
@@ -91,7 +88,9 @@ const AuthInstructorRouter = () => {
         instructor: {
           id: instructor._id,
           name: instructor.name,
-          email: instructor.email
+          email: instructor.email,
+          role: 'Admin',
+          profileImage: instructor.profileImage
         }
       });
     } catch (error) {

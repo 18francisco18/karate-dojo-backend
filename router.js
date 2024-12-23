@@ -5,6 +5,7 @@ let StudentAPI = require("./server/student");
 let GraduationAPI = require("./server/graduation");
 let AuthInstructor = require("./server/authInstructor");
 let AuthStudent = require("./server/authStudent");
+let ProfileImageAPI = require("./routes/profileImage");
 
 function init() {
   let api = express();
@@ -15,6 +16,7 @@ function init() {
   api.use("/graduation", GraduationAPI());
   api.use("/authInstructor", AuthInstructor());
   api.use("/authStudent", AuthStudent());
+  api.use("/profile-image", ProfileImageAPI);
 
   return api;
 }

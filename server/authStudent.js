@@ -93,7 +93,8 @@ const AuthStudentRouter = () => {
           id: student._id,
           name: student.name,
           email: student.email,
-          belt: student.belt
+          belt: student.belt,
+          profileImage: student.profileImage
         }
       });
     } catch (error) {
@@ -130,7 +131,8 @@ const AuthStudentRouter = () => {
           name: student.name,
           email: student.email,
           belt: student.belt,
-          instructor: student.instructor
+          instructor: student.instructor,
+          profileImage: student.profileImage
         }
       });
     } catch (error) {

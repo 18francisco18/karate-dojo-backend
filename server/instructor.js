@@ -282,6 +282,37 @@ const InstructorRouter = () => {
     }
   });
 
+  // Rota para atualizar o perfil do instrutor
+  router.put("/update", VerifyToken(), async (req, res) => {
+    try {
+      const instructorId = req.userId;
+      const instructor = await Instructor.findById(instructorId);
+
+      if (!instructor) {
+        return res.status(404).json({ error: "Instrutor não encontrado" });
+      }
+
+      // Atualizar apenas os campos permitidos
+      const allowedUpdates = ['name', 'email', 'profileImage'];
+      const updates = {};
+      
+      Object.keys(req.body).forEach(key => {
+        if (allowedUpdates.includes(key)) {
+          updates[key] = req.body[key];
+        }
+      });
+
+      // Atualizar o instrutor
+      Object.assign(instructor, updates);
+      await instructor.save();
+
+      res.status(200).json(instructor);
+    } catch (error) {
+      console.error("Erro ao atualizar perfil:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Servir arquivos de recibo
   router.get("/receipt/:filename", VerifyToken(), (req, res) => {
     const filename = req.params.filename;
