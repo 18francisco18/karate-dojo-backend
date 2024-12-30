@@ -12,7 +12,7 @@ const swaggerSpecs = require('./swagger');
 const app = express();
 
 const corsOptions = {
-  origin: 'http://localhost:3000',
+  origin: ['http://localhost:3000', 'http://localhost:3001'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -23,10 +23,8 @@ require("./jobs/cronJobs"); // Importa o arquivo de jobs com o cron
 
 // Middleware para analisar JSON
 app.use(express.json());
-// Middleware para habilitar CORS
-app.use(cors(corsOptions));
-// Middleware para analisar cookies
 app.use(cookieParser());
+app.use(cors(corsOptions));
 
 // Swagger UI
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
@@ -51,8 +49,9 @@ const connectWithRetry = () => {
       // Configurar pasta de uploads como estática
       app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-      let router = require("./router");
-      app.use(router.init());
+      // Registra as rotas da API
+      const router = require('./router');
+      app.use('/', router.init());
 
       // Importar a nova rota de imagem de perfil
       const profileImageRoutes = require('./routes/profileImage');
@@ -66,6 +65,12 @@ const connectWithRetry = () => {
       const monthlyFeesRoutes = require('./routes/monthlyFees');
 
       app.use('/monthly-fees', monthlyFeesRoutes);
+
+      // Middleware de erro global
+      app.use((err, req, res, next) => {
+        console.error(err.stack);
+        res.status(500).json({ error: 'Something broke!' });
+      });
     })
     .catch((err) => {
       console.error("MongoDB connection error FULL:", err);
@@ -83,12 +88,6 @@ const hostname = process.env.HOST;
 const port = process.env.PORT || 5000;
 
 const server = http.Server(app);
-
-// Global error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).send('Something broke!');
-});
 
 // Inicie o servidor
 server.listen(port, () => {
