@@ -53,4 +53,11 @@ async function sendEmail(to, subject, text) {
   }
 }
 
+// Exemplo de uso:
+// sendEmail(
+//   'luismaga14@hotmail.com',
+//   'Aviso de Mensalidade Atrasada',
+//   'Prezado(a) Luis,\n\nSua mensalidade com vencimento em 01/01/2025 está atrasada.\nValor: R$ 50\n\nPor favor, regularize o pagamento o mais breve possível para evitar a suspensão dos serviços.\n\nAtenciosamente,\nEquipe do Dojo'
+// );
+
 module.exports = sendEmail;

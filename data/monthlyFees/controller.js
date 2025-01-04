@@ -186,13 +186,10 @@ async function notifyOverdueMonthlyFee(monthlyFee) {
       throw new Error("E-mail do aluno não encontrado");
     }
 
-    const emailContent = {
-      to: student.email,
-      subject: "Aviso de Mensalidade Atrasada",
-      text: `Prezado(a) ${student.name},\n\nSua mensalidade com vencimento em ${monthlyFee.dueDate.toLocaleDateString()} está atrasada.\nValor: R$ ${monthlyFee.amount}\n\nPor favor, regularize o pagamento o mais breve possível para evitar a suspensão dos serviços.\n\nAtenciosamente,\nEquipe do Dojo`,
-    };
+    const subject = "Aviso de Mensalidade Atrasada";
+    const text = `Prezado(a) ${student.name},\n\nSua mensalidade com vencimento em ${monthlyFee.dueDate.toLocaleDateString()} está atrasada.\nValor: € ${monthlyFee.amount}\n\nPor favor, regularize o pagamento o mais breve possível para evitar a suspensão dos serviços.\n\nAtenciosamente,\nEquipe do Dojo`;
 
-    await sendEmail(emailContent);
+    await sendEmail(student.email, subject, text);
     console.log(`E-mail de aviso enviado para ${student.email}`);
   } catch (error) {
     console.error("Erro ao enviar notificação:", error.message);
@@ -269,13 +266,22 @@ async function hasUnpaidFees(studentId) {
 async function getFilteredMonthlyFees(filters = {}) {
   try {
     let query = {};
+    const currentDate = new Date();
 
-    if (filters.status) {
+    // Handle status filter
+    if (filters.status === 'overdue') {
+      query.status = 'pending';
+      query.dueDate = { $lt: currentDate };
+    } else if (filters.status === 'pending') {
+      query.status = 'pending';
+      query.dueDate = { $gte: currentDate };
+    } else if (filters.status) {
       query.status = filters.status;
     }
 
-    if (filters.dueDateStart || filters.dueDateEnd) {
-      query.dueDate = {};
+    // Handle date filters only if not filtering by overdue status
+    if (filters.status !== 'overdue' && (filters.dueDateStart || filters.dueDateEnd)) {
+      query.dueDate = query.dueDate || {};
       if (filters.dueDateStart) {
         query.dueDate.$gte = new Date(filters.dueDateStart);
       }
@@ -284,6 +290,7 @@ async function getFilteredMonthlyFees(filters = {}) {
       }
     }
 
+    // Handle amount filters
     if (filters.minAmount || filters.maxAmount) {
       query.amount = {};
       if (filters.minAmount) {
@@ -294,9 +301,12 @@ async function getFilteredMonthlyFees(filters = {}) {
       }
     }
 
+    // Handle payment method
     if (filters.paymentMethod) {
       query.paymentMethod = filters.paymentMethod;
     }
+
+    console.log('Query:', JSON.stringify(query, null, 2)); // Debug log
 
     const monthlyFees = await MonthlyFee.find(query)
       .populate({
